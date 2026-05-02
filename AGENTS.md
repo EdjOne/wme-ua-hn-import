@@ -15,14 +15,14 @@
 ```
 ~/projects/house-number/
 ├── AGENTS.md
-├── repo/                     # Клон исходного репозитория
+├── repo/                     # Клон исходного репозитория (Словения)
 │   ├── wme-sl-hn-import.user.js
 │   └── README.md, LICENSE, icons, screenshot
+├── waze-ua-repo/             # Клон WME-UA-address-data (укр. полигоны адресов)
 ├── research/                 # Исследования
 │   └── services.md           # Украинские адресные сервисы
 ├── src/
-│   ├── ua-hn-import.user.js  # Финальный скрипт
-│   └── CHANGELOG.md
+│   └── ua-hn-import.user.js  # ✅ Финальный скрипт (Украина, v1.0.0)
 └── data/
     └── test-bbox.json        # Тестовые bbox для отладки
 ```
@@ -130,9 +130,9 @@ trg. → trg            бульв. → бульвар
 - [x] Получена ссылка на GitHub исходного скрипта
 - [x] Склонён код
 - [x] Исследованы украинские сервисы адресов
-- [x] Определён Overpass API как основной источник
+- [x] Найден **stat.waze.com.ua** — API адресов от Waze Ukraine
 - [x] Составлен план адаптации
-- [ ] Создан адаптированный скрипт
+- [x] Создан адаптированный скрипт **ua-hn-import.user.js** (v1.0.0)
 - [ ] Протестировано в WME
 
 ## 🚀 Быстрые команды
