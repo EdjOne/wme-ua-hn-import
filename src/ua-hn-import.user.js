@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
-// @namespace    https://github.com/waze-ua/wme-ua-hn-import
-// @version      1.0.0
+// @namespace    https://github.com/EdjOne/wme-ua-hn-import
+// @version      1.0.1
 // @description  Швидке додавання номерів будинків (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
-// @downloadURL  https://raw.githubusercontent.com/waze-ua/wme-ua-hn-import/main/ua-hn-import.user.js
-// @updateURL    https://raw.githubusercontent.com/waze-ua/wme-ua-hn-import/main/ua-hn-import.user.js
-// @supportURL   https://github.com/waze-ua/wme-ua-hn-import/issues
-// @icon         https://raw.githubusercontent.com/waze-ua/wme-ua-hn-import/main/icon48.png
-// @icon64       https://raw.githubusercontent.com/waze-ua/wme-ua-hn-import/main/icon64.png
+// @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
+// @updateURL    https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
+// @supportURL   https://github.com/EdjOne/wme-ua-hn-import/issues
+// @icon         https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/icon48.png
+// @icon64       https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/icon64.png
 // @match        https://www.waze.com/editor*
 // @match        https://www.waze.com/*/editor*
 // @match        https://beta.waze.com/*
