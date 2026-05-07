@@ -450,6 +450,13 @@
     "Заславського": "Бориса Літвака",
     "Краснослобідська": "Праведників світу"
   };
+
+  // Build reverse mapping for bidirectional lookup (OSM may return new or old name)
+  const STREET_RENAMES_REVERSE = {};
+  for (const [old, current] of Object.entries(STREET_RENAMES)) {
+    STREET_RENAMES_REVERSE[current] = old;
+  }
+
   function applyStreetRenames(name) {
     return STREET_RENAMES[name] || name;
   }
@@ -495,10 +502,11 @@
   function normalizeForComparison(name) {
     let normalized = String(name).trim();
 
-    // Apply street renames first (old names -> current names)
-    // Check both original case and normalized variants
+    // Apply street renames first (check both old->new and new->old)
+    // OSM data may have either old or new street names
     const lower = normalized.toLowerCase();
-    normalized = STREET_RENAMES[normalized] || STREET_RENAMES[lower] || normalized;
+    normalized = STREET_RENAMES[normalized] || STREET_RENAMES[lower] ||
+                 STREET_RENAMES_REVERSE[normalized] || STREET_RENAMES_REVERSE[lower] || normalized;
 
     // Now lowercase and expand abbreviations
     normalized = normalized.toLowerCase();
