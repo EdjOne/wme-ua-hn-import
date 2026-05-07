@@ -6,14 +6,14 @@
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
 // @updateURL    https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
-// @supportURL   https://github.com/EdjOne/wme-ua-hn-import/issues
+// @version      1.1.0
 // @icon         https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/icon48.png
 // @icon64       https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/icon64.png
 // @match        https://www.waze.com/editor*
 // @match        https://www.waze.com/*/editor*
 // @match        https://beta.waze.com/*
 // @exclude      https://www.waze.com/user/editor*
-// @connect      stat.waze.com.ua
+// @connect      overpass-api.de
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @license      MIT
@@ -28,7 +28,7 @@
  * - https://github.com/zigapovhe/wme-sl-hn-import (Slovenia version)
  * - https://github.com/waze-ua/WME-UA-address-data (UA address polygons)
  *
- * Data source: stat.waze.com.ua (Waze Україна address server)
+ * Data source: OpenStreetMap via Overpass API (addr:housenumber, addr:street tags)
  * Projection: WGS84 (EPSG:4326) — no reprojection needed
  */
 
@@ -44,9 +44,9 @@
   const MAX_CLICK_DISTANCE_PX = 25;
   const MAX_HN_CONFLICT_DISTANCE = 10;
 
-  // UA address server API
-  const UA_API = 'https://stat.waze.com.ua/address_map/address_map.php';
-  const UA_TIMEOUT = 15000;
+  // Overpass API endpoint
+  const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
+  const OVERPASS_TIMEOUT = 30000;
   const UA_BUFFER_DEFAULT = 400; // default radius in meters for zoom 18+
 
   // Common Ukrainian street name abbreviations
@@ -597,77 +597,74 @@
     return false;
   }
 
-  /**
-   * Parse the UA address name field into components.
-   * Format: "м.Київ\n р-н Шевченківський\n вул. Хрещатик\n 22"
-   */
-  function parseUaAddress(name, centerStr) {
-    const lines = String(name).split('\n').map(l => l.trim()).filter(Boolean);
-    // lines[0] = city, lines[1] = district, lines[2] = street, lines[3] = house_number
-    // Some entries may have only 3 lines (no house number)
-    const city = lines[0] || '';
-    const district = lines[1] || '';
-    const street = lines[2] || '';
-    const houseNumber = lines[3] || '';
-
-    // Parse center: "50.449824026649;30.522160217595" (lat;lon)
-    let lat, lon;
-    if (centerStr) {
-      const parts = centerStr.split(';').map(Number);
-      lat = parts[0];
-      lon = parts[1];
-    }
-
-    return { city, district, street, houseNumber, lat, lon };
-  }
-
-  // Fetch addresses from UA API
+  // Fetch addresses from Overpass API (OSM)
   function fetchAddresses(centerLat, centerLon, radius) {
     return new Promise((resolve, reject) => {
-      const url = UA_API + `?lat=${centerLat}&lon=${centerLon}&radius=${Math.round(radius)}`;
+      // Overpass QL query for house numbers
+      const query = `
+        [out:json][timeout:25];
+        (
+          node["addr:housenumber"](around:${Math.round(radius)},${centerLat},${centerLon});
+          way["addr:housenumber"](around:${Math.round(radius)},${centerLat},${centerLon});
+        );
+        out center;
+      `;
 
       GM_xmlhttpRequest({
-        method: 'GET',
-        url: url,
-        timeout: UA_TIMEOUT,
+        method: 'POST',
+        url: OVERPASS_API,
+        timeout: OVERPASS_TIMEOUT,
+        data: 'data=' + encodeURIComponent(query),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
         onload: function (response) {
           try {
             const data = JSON.parse(response.responseText);
 
-            if (data.result !== 'success' || !data.data?.polygons?.Default) {
-              reject(new Error('Invalid API response'));
+            if (!data.elements || data.elements.length === 0) {
+              resolve({ features: [], streets: {}, streetNames: {} });
               return;
             }
 
-            const polygons = data.data.polygons.Default;
-
-            // Filter to only "active" addresses with house numbers
             const features = [];
             const streetNames = {};
             const streets = {};
 
-            for (const item of polygons) {
-              if (item.status !== 'active') continue;
+            for (const el of data.elements) {
+              const tags = el.tags || {};
+              const street = tags['addr:street'] || tags['addr:full'];
+              const houseNumber = tags['addr:housenumber'];
 
-              const parsed = parseUaAddress(item.name, item.center);
-              if (!parsed.houseNumber || !parsed.street) continue;
-              if (parsed.lat == null || parsed.lon == null) continue;
+              if (!houseNumber || !street) continue;
 
-              const streetId = normalizeStreetName(parsed.street);
-              if (!streets[parsed.street]) {
-                streets[parsed.street] = streetId;
-                streetNames[streetId] = parsed.street;
+              // Get coordinates (way has center, node has lat/lon)
+              let lat, lon;
+              if (el.type === 'way' && el.center) {
+                lat = el.center.lat;
+                lon = el.center.lon;
+              } else {
+                lat = el.lat;
+                lon = el.lon;
+              }
+
+              if (lat == null || lon == null) continue;
+
+              const streetId = normalizeStreetName(street);
+              if (!streets[street]) {
+                streets[street] = streetId;
+                streetNames[streetId] = street;
               }
 
               features.push({
-                number: parsed.houseNumber.toLowerCase(),
+                number: String(houseNumber).toLowerCase(),
                 street: streetId,
-                streetRaw: parsed.street,
-                houseNumberRaw: parsed.houseNumber,
-                lat: parsed.lat,
-                lon: parsed.lon,
-                city: parsed.city,
-                district: parsed.district
+                streetRaw: street,
+                houseNumberRaw: houseNumber,
+                lat: lat,
+                lon: lon,
+                city: tags['addr:city'] || tags['is_in:city'] || '',
+                district: tags['addr:district'] || tags['addr:subdistrict'] || ''
               });
             }
 
@@ -680,7 +677,7 @@
           reject(err);
         },
         ontimeout: function () {
-          reject(new Error('UA address server request timed out'));
+          reject(new Error('Overpass API request timed out'));
         }
       });
     });
