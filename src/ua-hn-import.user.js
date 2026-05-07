@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.1.1
+// @version      1.1.2
 // @description  Швидке додавання номерів будинків (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -13,6 +13,8 @@
 // @match        https://beta.waze.com/*
 // @exclude      https://www.waze.com/user/editor*
 // @connect      overpass.kumi.systems
+// @connect      overpass-api.de
+// @connect      overpass.openstreetmap.ru
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @license      MIT
@@ -43,10 +45,14 @@
   const MAX_CLICK_DISTANCE_PX = 25;
   const MAX_HN_CONFLICT_DISTANCE = 10;
 
-  // Overpass API endpoint (CORS-friendly)
-  const OVERPASS_API = 'https://overpass.kumi.systems/api/interpreter';
-  const OVERPASS_TIMEOUT = 30000;
-  const UA_BUFFER_DEFAULT = 400; // default radius in meters for zoom 18+
+  // Overpass API endpoints (CORS-friendly, try in order)
+  const OVERPASS_ENDPOINTS = [
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.openstreetmap.ru/api/interpreter'
+  ];
+const OVERPASS_TIMEOUT = 60000; // 60 seconds
+  const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
 
   // Common Ukrainian street name abbreviations
   const ABBREVIATIONS = {
@@ -596,10 +602,9 @@
     return false;
   }
 
-  // Fetch addresses from Overpass API (OSM)
-  function fetchAddresses(centerLat, centerLon, radius) {
+  // Fetch addresses from Overpass API (OSM) with fallback endpoints
+  function fetchAddresses(centerLat, centerLon, radius, endpointIndex = 0) {
     return new Promise((resolve, reject) => {
-      // Overpass QL query for house numbers
       const query = `
         [out:json][timeout:25];
         (
@@ -609,9 +614,11 @@
         out center;
       `;
 
+      const url = OVERPASS_ENDPOINTS[endpointIndex] || OVERPASS_ENDPOINTS[0];
+
       GM_xmlhttpRequest({
         method: 'POST',
-        url: OVERPASS_API,
+        url: url,
         timeout: OVERPASS_TIMEOUT,
         data: 'data=' + encodeURIComponent(query),
         headers: {
@@ -619,10 +626,9 @@
         },
         onload: function (response) {
           try {
-            // Check for HTML error (CORS blocked or server error)
             const text = response.responseText.trim();
             if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
-              throw new Error('API returned HTML instead of JSON (CORS blocked or server error)');
+              throw new Error('API returned HTML instead of JSON');
             }
 
             const data = JSON.parse(text);
@@ -643,7 +649,6 @@
 
               if (!houseNumber || !street) continue;
 
-              // Get coordinates (way has center, node has lat/lon)
               let lat, lon;
               if (el.type === 'way' && el.center) {
                 lat = el.center.lat;
@@ -675,14 +680,31 @@
 
             resolve({ features, streets, streetNames });
           } catch (err) {
-            reject(err);
+            // Try next endpoint if available
+            if (endpointIndex < OVERPASS_ENDPOINTS.length - 1) {
+              toast(`Спроба іншого сервера Overpass...`, 'warning');
+              fetchAddresses(centerLat, centerLon, radius, endpointIndex + 1).then(resolve).catch(reject);
+            } else {
+              reject(err);
+            }
           }
         },
         onerror: function (err) {
-          reject(err);
+          // Try next endpoint on error
+          if (endpointIndex < OVERPASS_ENDPOINTS.length - 1) {
+            fetchAddresses(centerLat, centerLon, radius, endpointIndex + 1).then(resolve).catch(reject);
+          } else {
+            reject(err);
+          }
         },
         ontimeout: function () {
-          reject(new Error('Overpass API request timed out'));
+          // Try next endpoint on timeout
+          if (endpointIndex < OVERPASS_ENDPOINTS.length - 1) {
+            toast(`Таймаут, спроба іншого сервера...`, 'warning');
+            fetchAddresses(centerLat, centerLon, radius, endpointIndex + 1).then(resolve).catch(reject);
+          } else {
+            reject(new Error('Всі сервери Overpass API недоступні'));
+          }
         }
       });
     });
