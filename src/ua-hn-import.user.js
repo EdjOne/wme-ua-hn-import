@@ -1,19 +1,18 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.0.2
+// @version      1.1.1
 // @description  Швидке додавання номерів будинків (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
 // @updateURL    https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
-// @version      1.1.0
 // @icon         https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/icon48.png
 // @icon64       https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/icon64.png
 // @match        https://www.waze.com/editor*
 // @match        https://www.waze.com/*/editor*
 // @match        https://beta.waze.com/*
 // @exclude      https://www.waze.com/user/editor*
-// @connect      overpass-api.de
+// @connect      overpass.kumi.systems
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @license      MIT
@@ -44,8 +43,8 @@
   const MAX_CLICK_DISTANCE_PX = 25;
   const MAX_HN_CONFLICT_DISTANCE = 10;
 
-  // Overpass API endpoint
-  const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
+  // Overpass API endpoint (CORS-friendly)
+  const OVERPASS_API = 'https://overpass.kumi.systems/api/interpreter';
   const OVERPASS_TIMEOUT = 30000;
   const UA_BUFFER_DEFAULT = 400; // default radius in meters for zoom 18+
 
@@ -620,7 +619,13 @@
         },
         onload: function (response) {
           try {
-            const data = JSON.parse(response.responseText);
+            // Check for HTML error (CORS blocked or server error)
+            const text = response.responseText.trim();
+            if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+              throw new Error('API returned HTML instead of JSON (CORS blocked or server error)');
+            }
+
+            const data = JSON.parse(text);
 
             if (!data.elements || data.elements.length === 0) {
               resolve({ features: [], streets: {}, streetNames: {} });
