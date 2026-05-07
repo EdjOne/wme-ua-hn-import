@@ -22,7 +22,7 @@
 ├── research/                 # Исследования
 │   └── services.md           # Украинские адресные сервисы
 ├── src/
-│   └── ua-hn-import.user.js  # ✅ v1.1.0 — Overpass API (OSM)
+│   └── ua-hn-import.user.js  # ✅ v1.1.1 — Overpass API (overpass.kumi.systems)
 └── data/
     └── test-bbox.json        # Тестовые bbox для отладки
 ```
