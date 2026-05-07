@@ -65,9 +65,9 @@
     'спуск': 'узвіз'
   };
 
-  // Street rename mapping (Odessa 1995-2026)
+  // Street rename mapping (Odessa only - 380 renamed streets 1995-2026)
+  // Source: https://odeskyividhuk.github.io/streets/
   // Format: "old_name": "current_name"
-  // Full list: 381 renamed streets from https://odeskyividhuk.github.io/streets/
   const STREET_RENAMES = {
     "Виставочна": "Виставкова",
     "Волниста": "Хвиляста",
