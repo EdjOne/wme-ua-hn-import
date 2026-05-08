@@ -519,6 +519,13 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     // Now lowercase and expand abbreviations
     normalized = normalized.toLowerCase();
 
+    // Remove street type prefixes (вул., пров., просп., etc.) from start of string
+    for (const abbrev of Object.keys(ABBREVIATIONS)) {
+      const escapedAbbrev = abbrev.replace(/\./g, '\\.');
+      const regex = new RegExp('^' + escapedAbbrev + '\\s*', 'i');
+      normalized = normalized.replace(regex, '');
+    }
+
     for (const [abbrev, full] of Object.entries(ABBREVIATIONS)) {
       const escapedAbbrev = abbrev.replace(/\./g, '\\.');
       const regex = new RegExp('(^|\\s)' + escapedAbbrev + '(?=\\s|$)', 'gi');
