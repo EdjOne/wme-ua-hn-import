@@ -24,7 +24,7 @@
 ├── waze.py                   # ✅ stat.waze.com.ua extractor (госреєстр)
 ├── extract_from_waze.py      # Single point extractor
 ├── src/
-│   └── ua-hn-import.user.js  # v1.1.2 — Overpass API (fallback servers)
+│   └── ua-hn-import.user.js  # v1.3.0 — Overpass API + stat.waze.com.ua
 └── data/
     └── test-bbox.json        # Тестовые bbox для отладки
 ```
