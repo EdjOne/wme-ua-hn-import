@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.1.2
+// @version      1.2.0
 // @description  Швидке додавання номерів будинків (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -15,6 +15,7 @@
 // @connect      overpass.kumi.systems
 // @connect      overpass-api.de
 // @connect      overpass.openstreetmap.ru
+// @connect      stat.waze.com.ua
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @license      MIT
@@ -474,7 +475,9 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     getSelectedOnly() { return localStorage.getItem('qhnua-selected-only') === '1'; },
     setSelectedOnly(v){ localStorage.setItem('qhnua-selected-only', v ? '1' : '0'); },
     getNavPoints()    { return localStorage.getItem('qhnua-navpoints') === '1'; },
-    setNavPoints(v)   { localStorage.setItem('qhnua-navpoints', v ? '1' : '0'); }
+    setNavPoints(v)   { localStorage.setItem('qhnua-navpoints', v ? '1' : '0'); },
+    getSource()       { return localStorage.getItem('qhnua-source') || 'osm'; },  // 'osm' or 'waze'
+    setSource(v)      { localStorage.setItem('qhnua-source', v); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -705,6 +708,69 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           } else {
             reject(new Error('Всі сервери Overpass API недоступні'));
           }
+        }
+      });
+    });
+  }
+
+  // Fetch addresses from Waze Ukraine state register (stat.waze.com.ua)
+  function fetchAddressesWaze(centerLat, centerLon, radius) {
+    return new Promise((resolve, reject) => {
+      const url = `https://stat.waze.com.ua/address_map/address_map.php?lat=${centerLat}&lon=${centerLon}&radius=${radius}`;
+
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url: url,
+        timeout: 30000,
+        onload: function (response) {
+          try {
+            const data = JSON.parse(response.responseText);
+            const polygons = data?.data?.polygons?.Default || [];
+
+            const features = [];
+            const streetNames = {};
+            const streets = {};
+
+            for (const item of polygons) {
+              const center = item.center.split(';');
+              const lat = parseFloat(center[0]);
+              const lon = parseFloat(center[1]);
+
+              const nameParts = item.name.trim().split('\n').map(p => p.trim()).filter(p => p);
+              const city = (nameParts[0] || '').replace('м.', '').trim();
+              const street = (nameParts[2] || '').replace(/^(вул\.|пров\.)/, '').trim();
+              const houseNumber = nameParts[3] || '';
+
+              if (!houseNumber || !street) continue;
+
+              const streetId = normalizeStreetName(street);
+              if (!streets[street]) {
+                streets[street] = streetId;
+                streetNames[streetId] = street;
+              }
+
+              features.push({
+                number: houseNumber.toLowerCase(),
+                street: streetId,
+                streetRaw: street,
+                houseNumberRaw: houseNumber,
+                lat: lat,
+                lon: lon,
+                city: city,
+                district: (nameParts[1] || '').replace('р-н', '').trim()
+              });
+            }
+
+            resolve({ features, streets, streetNames });
+          } catch (err) {
+            reject(err);
+          }
+        },
+        onerror: function (err) {
+          reject(err);
+        },
+        ontimeout: function () {
+          reject(new Error('Waze API timeout'));
         }
       });
     });
@@ -1271,6 +1337,10 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
             <wz-checkbox id="qhnua-navpoints">Показати HN NavPoints</wz-checkbox>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
+          <div style="margin:6px 0;font-size:13px;">
+            <label style="margin-right:12px;"><input type="radio" name="qhnua-source" value="osm"> OSM (Overpass)</label>
+            <label><input type="radio" name="qhnua-source" value="waze"> Держреєстр (stat.waze.com.ua)</label>
+          </div>
           <div id="hn-status" style="margin-top:10px;font-size:12px;color:#666;line-height:1.4;">
             <b>Інструкція</b><br/>
             1) Вибрати сегмент • 2) Натиснути "Завантажити вулицю" • 3) <b>Клікнути номер на карті для додавання</b><br/>
@@ -1334,6 +1404,13 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         setChecked(chkSelectedOnly, newState);
         LS.setSelectedOnly(newState);
         applyFeatureFilter();
+      });
+
+      tabPane.querySelectorAll('input[name="qhnua-source"]').forEach(r => {
+        r.checked = (r.value === LS.getSource());
+        r.addEventListener('change', () => {
+          if (r.checked) LS.setSource(r.value);
+        });
       });
 
       async function loadSelectedStreet() {
@@ -1704,7 +1781,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           radius = Math.max(radius, userBuffer);
 
           Promise.all([
-            fetchAddresses(centerLat, centerLon, radius),
+            LS.getSource() === 'waze' ? fetchAddressesWaze(centerLat, centerLon, radius) : fetchAddresses(centerLat, centerLon, radius),
             getVisibleHNsByStreet()
           ])
             .then(([apiResult, selectionHNMap]) => {
