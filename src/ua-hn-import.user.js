@@ -562,6 +562,9 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       if (sorted1 === sorted2) return 0.98;
     }
 
+    // Substring check (e.g., "Весела" vs "вул. Весела")
+    if (s1.includes(s2) || s2.includes(s1)) return 0.96;
+
     // Levenshtein distance based similarity
     const distance = levenshteinDistance(s1, s2);
     const maxLen = Math.max(s1.length, s2.length);
