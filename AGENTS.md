@@ -21,8 +21,10 @@
 ├── waze-ua-repo/             # Клон WME-UA-address-data (укр. полигоны адресов)
 ├── research/                 # Исследования
 │   └── services.md           # Украинские адресные сервисы
+├── waze.py                   # ✅ stat.waze.com.ua extractor (госреєстр)
+├── extract_from_waze.py      # Single point extractor
 ├── src/
-│   └── ua-hn-import.user.js  # ✅ v1.1.2 — Overpass API (fallback servers)
+│   └── ua-hn-import.user.js  # v1.1.2 — Overpass API (fallback servers)
 └── data/
     └── test-bbox.json        # Тестовые bbox для отладки
 ```
@@ -31,15 +33,16 @@
 
 ### Проверенные варианты
 
-| Сервис | Статус | CORS | Пригодность |
-|--------|--------|------|-------------|
-| **OpenStreetMap (Overpass API)** | ✅ Работает | ❌ Нет CORS, но GM_xmlhttpRequest обходит | Bulk-загрузка номеров по bbox |
-| **Nominatim (OSM)** | ✅ Работает | ✅ * | Reverse geocode (поштучно) |
-| **Dobrepole API** | ❌ NXDOMAIN | — | Недоступен |
-| **nominatim.osm.org.ua** | ❌ NXDOMAIN | — | Недоступен |
-| **НАІС / Держреєстр адрес** | ⚠️ Сложно | Ограничен | Офіційний, але нестабільний |
+|| Сервис | Статус | CORS | Пригодность |
+||--------|--------|------|-------------|
+|| **OpenStreetMap (Overpass API)** | ✅ Работает | ❌ Нет CORS, но GM_xmlhttpRequest обходит | Bulk-загрузка номеров по bbox |
+|| **Nominatim (OSM)** | ✅ Работает | ✅ * | Reverse geocode (поштучно) |
+|| **Dobrepole API** | ❌ NXDOMAIN | — | Недоступен |
+|| **nominatim.osm.org.ua** | ❌ NXDOMAIN | — | Недоступен |
+|| **НАІС / Держреєстр адрес** | ⚠️ Сложно | Ограничен | Офіційний, але нестабійний |
+|| **stat.waze.com.ua** | ✅ Работает | ✅ | Госреєстр, точніше OSM |
 
-**Вывод:** Используем **Overpass API** как основной источник.
+**Вывод:** `stat.waze.com.ua` — госреєстр, точніше OSM. Дані від Waze Ukraine.
 
 ### Почему Overpass API
 
@@ -131,6 +134,7 @@ trg. → trg            бульв. → бульвар
 - [x] Склонён код
 - [x] Исслованы украинские сервисы адресов
 - [x] Найден **stat.waze.com.ua** — API адресов от Waze Ukraine
+- [x] **Создан extractor waze.py** — госреєстр, центр полігона = точка адреса
 - [x] Составлен план адаптации
 - [x] Создан адаптированный скрипт **ua-hn-import.user.js** (v1.0.0)
 - [x] Протестировано в WME
