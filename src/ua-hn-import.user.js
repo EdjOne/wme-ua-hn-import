@@ -553,6 +553,15 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     // Match without diacritics
     if (removeDiacritics(s1) === removeDiacritics(s2)) return 0.95;
 
+    // Word permutation check (e.g., "флотилії дунайської" vs "дунайської флотилії")
+    const words1 = s1.split(/\s+/).filter(w => w.length > 2);
+    const words2 = s2.split(/\s+/).filter(w => w.length > 2);
+    if (words1.length === words2.length && words1.length > 1) {
+      const sorted1 = [...words1].sort().join(' ');
+      const sorted2 = [...words2].sort().join(' ');
+      if (sorted1 === sorted2) return 0.98;
+    }
+
     // Levenshtein distance based similarity
     const distance = levenshteinDistance(s1, s2);
     const maxLen = Math.max(s1.length, s2.length);
