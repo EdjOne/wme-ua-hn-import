@@ -984,7 +984,11 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       }
 
       // Check how many match current WME street
-      const matchCount = wmeStreetName ? (streetCounts[wmeStreetName] || 0) : 0;
+      // Normalize WME name for comparison (remove вул./пров. prefix, lowercase)
+      const normalizedWmeName = normalizeForComparison(wmeStreetName);
+      const matchCount = wmeStreetName ? Object.entries(streetCounts).reduce((count, [name]) => {
+        return count + (normalizeForComparison(name) === normalizedWmeName ? streetCounts[name] : 0);
+      }, 0) : 0;
       const hasMismatch = wmeStreetName && matchCount === 0 && sorted.length > 0;
 
       // Find fuzzy match if there's a mismatch
@@ -1030,7 +1034,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       html += `<div style="max-height:150px;overflow-y:auto;border:1px solid #ddd;border-radius:4px;background:#fafafa;">`;
 
       sorted.forEach(([name, _count], index) => {
-        const isMatch = name === wmeStreetName;
+        const isMatch = normalizeForComparison(name) === normalizedWmeName;
         const isSuggestion = name === suggestedMatch;
         const escapedName = escapeHtml(name);
 
