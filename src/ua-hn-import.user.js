@@ -526,6 +526,13 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       normalized = normalized.replace(regex, '');
     }
 
+    // Remove street type suffixes (пров., вул., просп. etc.) from end of string
+    for (const abbrev of Object.keys(ABBREVIATIONS)) {
+      const escapedAbbrev = abbrev.replace(/\./g, '\\.');
+      const regex = new RegExp('\\s*' + escapedAbbrev + '$', 'i');
+      normalized = normalized.replace(regex, '');
+    }
+
     for (const [abbrev, full] of Object.entries(ABBREVIATIONS)) {
       const escapedAbbrev = abbrev.replace(/\./g, '\\.');
       const regex = new RegExp('(^|\\s)' + escapedAbbrev + '(?=\\s|$)', 'gi');
