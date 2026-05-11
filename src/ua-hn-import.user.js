@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.3.0
+// @version      1.3.1
 // @description  Швидке додавання номерів будинків (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
