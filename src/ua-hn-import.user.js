@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.6.0
+// @version      1.7.0
 // @description  Швидке додавання Residence точок (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -1143,71 +1143,64 @@
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
 
     function onFeatureClick(feature) {
-      console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number, street: feature.street });
+      console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number });
       if (feature.processed) return;
 
-      const streetName = streetNames[feature.street];
       const houseNumber = feature.number;
+      const featureLon = feature.lon;
+      const featureLat = feature.lat;
 
       try {
-        // Create Residence Point Place using Venues API
-        // Find the WME street ID by name
-        let streetId = null;
+        // Find the nearest segment to get the street
+        const segments = wmeSDK.DataModel.Segments.getAll();
+        console.log('[UA-HN] Total segments:', segments.length);
         
-        // Try various name variants
-        const nameVariants = [
-          streetName, // Original
-          normalizeForComparison(streetName), // Normalized
-          streetName + ' пров.',
-          streetName + ' вулиця',
-          streetName.replace(/\s+(пров|вулиця|просп|бульв)$/i, '')
-        ];
+        let nearestStreetId = null;
+        let minDist = Infinity;
         
-        for (const nameToTry of nameVariants) {
-          let street = wmeSDK.DataModel.Streets.getStreet({ streetName: nameToTry });
-          if (street) {
-            streetId = street.id;
-            console.log('[UA-HN] Found street directly', { streetName, matched: nameToTry, streetId });
-            break;
+        // Calculate distance to segment
+        function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          if (dx === 0 && dy === 0) {
+            return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+          }
+          const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+          const closestX = x1 + t * dx;
+          const closestY = y1 + t * dy;
+          return Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
+        }
+        
+        // Convert feature coords to pixel coords
+        const featurePx = wmeSDK.Map.getMapPixelFromLonLat({ lon: featureLon, lat: featureLat });
+        
+        for (const seg of segments) {
+          const coords = seg.geometry?.coordinates;
+          if (!Array.isArray(coords) || coords.length < 2) continue;
+          
+          // Calculate distance to each segment line
+          for (let i = 0; i < coords.length - 1; i++) {
+            const p1 = coords[i];
+            const p2 = coords[i + 1];
+            if (!p1 || !p2) continue;
+            
+            const p1Px = wmeSDK.Map.getMapPixelFromLonLat({ lon: p1[0], lat: p1[1] });
+            const p2Px = wmeSDK.Map.getMapPixelFromLonLat({ lon: p2[0], lat: p2[1] });
+            
+            const dist = pointToSegmentDist(featurePx.x, featurePx.y, p1Px.x, p1Px.y, p2Px.x, p2Px.y);
+            if (dist < minDist && dist < 50) { // 50 pixels threshold
+              minDist = dist;
+              nearestStreetId = seg.primaryStreetId;
+            }
           }
         }
         
-        // If not found directly, search through segments
-        if (!streetId) {
-          console.log('[UA-HN] Street not found directly, searching segments...');
-          const segments = wmeSDK.DataModel.Segments.getAll();
-          console.log('[UA-HN] Total segments:', segments.length);
-          const streetNamesFound = new Set();
-          const normalizedTarget = normalizeForComparison(streetName);
-          for (const seg of segments) {
-            const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
-            if (segStreet) {
-              streetNamesFound.add(segStreet.name);
-              // Check both exact match and normalized match
-              if (normalizeForComparison(segStreet.name) === normalizedTarget) {
-                streetId = segStreet.id;
-                console.log('[UA-HN] Found street via segment (normalized)', { streetName, matched: segStreet.name, streetId });
-                break;
-              }
-            }
-            // Check alternate streets
-            const altIds = seg.alternateStreetIds || [];
-            for (const altId of altIds) {
-              const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
-              if (altStreet && normalizeForComparison(altStreet.name) === normalizedTarget) {
-                streetId = altStreet.id;
-                console.log('[UA-HN] Found street via alternate (normalized)', { streetName, matched: altStreet.name, streetId });
-                break;
-              }
-            }
-            if (streetId) break;
-          }
-          console.log('[UA-HN] Street names in view:', Array.from(streetNamesFound).slice(0, 20));
+        if (!nearestStreetId) {
+          throw new Error('Не знайдено сегментів поруч з цим маркером');
         }
-
-        if (!streetId) {
-          throw new Error(`Вулицю "${streetName}" не знайдено на карті`);
-        }
+        
+        const streetId = nearestStreetId;
+        console.log('[UA-HN] Nearest segment street ID:', streetId, 'distance:', minDist, 'px');
 
         const geometry = {
           type: 'Point',
@@ -1301,8 +1294,6 @@
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="qhnua-missing">Тільки відсутні</wz-checkbox>
-            <wz-checkbox id="qhnua-selected-only">Обрана вулиця</wz-checkbox>
-            <wz-checkbox id="qhnua-navpoints">Показати HN NavPoints</wz-checkbox>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
@@ -1431,12 +1422,10 @@
       btnClear.addEventListener('click', clearLayer);
 
       applyFeatureFilter = function () {
-        console.log('[UA-HN] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length, currentStreetId });
+        console.log('[UA-HN] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length });
         const onlyMissing  = chkMissing?.hasAttribute('checked');
-        const selectedOnly = chkSelectedOnly?.hasAttribute('checked');
         const visible = lastFeatures.filter(feat => {
           if (onlyMissing && feat.processed) return false;
-          if (selectedOnly && currentStreetId && feat.street !== currentStreetId) return false;
           return true;
         });
         if (lastSdkFeatureIds.length) {
