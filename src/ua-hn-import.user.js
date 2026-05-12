@@ -1289,13 +1289,18 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           coordinates: [feature.lon, feature.lat]
         };
 
-        // Add venue first
+        // Add venue
         const venueId = wmeSDK.DataModel.Venues.addVenue({
           category: 'OTHER',
           geometry: geometry
         });
 
-        // Update with address
+        // Update with address and street
+        wmeSDK.DataModel.Venues.updateVenue({
+          venueId: String(venueId),
+          name: houseNumber
+        });
+        
         wmeSDK.DataModel.Venues.updateAddress({
           venueId: String(venueId),
           houseNumber: houseNumber,
@@ -1981,6 +1986,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         'Map.getMapExtent',
         'Map.getMapPixelFromLonLat',
         'DataModel.Venues.addVenue',
+        'DataModel.Venues.updateVenue',
         'DataModel.Venues.updateAddress',
         'DataModel.Venues.updateVenueIsResidential',
         'DataModel.Venues.getAddress',
