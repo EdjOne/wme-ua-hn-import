@@ -1931,6 +1931,13 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
               applyFeatureFilter();
               analyzeStreetMatches();
 
+              // Ensure layer is visible after load
+              lastComputedVisibility = true; // Force visibility state
+              wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: true });
+              userWantsLayerVisible = true;
+              setChecked(chkVis, true);
+              LS.setLayerVisible(true);
+
               loading.style.display = 'none';
               const conflictCount = features.filter(f => f.conflict).length;
               const processedCount = features.filter(f => f.processed).length;
