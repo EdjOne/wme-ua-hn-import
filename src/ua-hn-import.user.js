@@ -1265,16 +1265,30 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       const houseNumber = feature.number;
 
       try {
-        // Create Residence Point Place
-        wmeSDK.DataModel.Objects.add({
-          geometry: {
-            type: 'Point',
-            coordinates: [feature.lon, feature.lat]
-          },
-          attributes: {
-            houseNumber: houseNumber,
-            categories: ['RESIDENCE_HOME']
-          }
+        // Create Residence Point Place using Venues API
+        const streetId = feature.street; // Already normalized to OSM format
+        const geometry = {
+          type: 'Point',
+          coordinates: [feature.lon, feature.lat]
+        };
+
+        // Add venue first
+        const venueId = wmeSDK.DataModel.Venues.addVenue({
+          category: 'OTHER',
+          geometry: geometry
+        });
+
+        // Update with address
+        wmeSDK.DataModel.Venues.updateAddress({
+          venueId: String(venueId),
+          houseNumber: houseNumber,
+          streetId: streetId
+        });
+
+        // Set as residential
+        wmeSDK.DataModel.Venues.updateVenueIsResidential({
+          venueId: String(venueId),
+          isResidential: true
         });
 
         feature.userAdded = true;
@@ -1947,7 +1961,10 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         'Map.getZoomLevel',
         'Map.getMapExtent',
         'Map.getMapPixelFromLonLat',
-        'DataModel.Objects.add'
+        'DataModel.Venues.addVenue',
+        'DataModel.Venues.updateAddress',
+        'DataModel.Venues.updateVenueIsResidential',
+        'DataModel.Venues.getAddress'
       ];
       const missing = required.filter(path => {
         const parts = path.split('.');
