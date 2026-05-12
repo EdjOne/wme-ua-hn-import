@@ -1277,15 +1277,39 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         // Find the WME street ID by name
         let streetId = null;
         
-        // Direct street lookup
-        const street = wmeSDK.DataModel.Streets.getStreet({
-          streetName: streetName
-        });
+        // First try direct lookup
+        let street = wmeSDK.DataModel.Streets.getStreet({ streetName: streetName });
         
         if (street) {
           streetId = street.id;
+          console.log('[UA-HN] Found street directly', { streetName, streetId });
         }
         
+        // If not found directly, search through segments
+        if (!streetId) {
+          console.log('[UA-HN] Street not found directly, searching segments...');
+          const segments = wmeSDK.DataModel.Segments.getAll();
+          for (const seg of segments) {
+            const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+            if (segStreet && segStreet.name === streetName) {
+              streetId = segStreet.id;
+              console.log('[UA-HN] Found street via segment', { streetName, streetId });
+              break;
+            }
+            // Check alternate streets
+            const altIds = seg.alternateStreetIds || [];
+            for (const altId of altIds) {
+              const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
+              if (altStreet && altStreet.name === streetName) {
+                streetId = altStreet.id;
+                console.log('[UA-HN] Found street via alternate', { streetName, streetId });
+                break;
+              }
+            }
+            if (streetId) break;
+          }
+        }
+
         if (!streetId) {
           throw new Error(`Вулицю "${streetName}" не знайдено на карті`);
         }
