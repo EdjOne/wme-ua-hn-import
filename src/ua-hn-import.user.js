@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.3.2
+// @version      1.3.3
 // @description  Швидке додавання номерів будинків (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -70,6 +70,12 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     'пр.': 'проїзд',
     'спуск': 'узвіз'
   };
+
+  // Full street type names to remove (for suffix stripping: "Успенська вулиця" → "Успенська")
+  const STREET_TYPES_FULL = [
+    'вулиця', 'провулок', 'проспект', 'бульвар', 'площа', 'майдан',
+    'узвіз', 'набережна', 'шосе', 'тупик', 'проїзд'
+  ];
 
   // Street rename mapping (Odessa only - 380 renamed streets 1995-2026)
   // Source: https://odeskyividhuk.github.io/streets/
@@ -537,6 +543,17 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       const escapedAbbrev = abbrev.replace(/\./g, '\\.');
       const regex = new RegExp('(^|\\s)' + escapedAbbrev + '(?=\\s|$)', 'gi');
       normalized = normalized.replace(regex, '$1' + full);
+    }
+
+    // Remove full street type suffixes (вулиця, провулок etc.) from end AND start of string
+    for (const type of STREET_TYPES_FULL) {
+      const escapedType = type.replace(/\s/g, '\\s');
+      // From end
+      let regex = new RegExp('\\s+' + escapedType + '$', 'i');
+      normalized = normalized.replace(regex, '');
+      // From start
+      regex = new RegExp('^' + escapedType + '\\s*', 'i');
+      normalized = normalized.replace(regex, '');
     }
 
     // Remove extra whitespace
