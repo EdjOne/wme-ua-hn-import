@@ -1361,12 +1361,6 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           isResidential: true
         });
 
-        // Set as entry point (for navigation)
-        wmeSDK.DataModel.Venues.updateVenueEntryPoint({
-          venueId: String(venueId),
-          isEntryPoint: true
-        });
-
         // Select the new venue to open edit panel
         wmeSDK.Editing.setSelection({
           selection: {
@@ -2052,7 +2046,6 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         'DataModel.Venues.updateVenue',
         'DataModel.Venues.updateAddress',
         'DataModel.Venues.updateVenueIsResidential',
-        'DataModel.Venues.updateVenueEntryPoint',
         'DataModel.Venues.getAddress',
         'DataModel.Streets.getStreet',
         'DataModel.Streets.getById',
