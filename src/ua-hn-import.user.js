@@ -1289,8 +1289,11 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         if (!streetId) {
           console.log('[UA-HN] Street not found directly, searching segments...');
           const segments = wmeSDK.DataModel.Segments.getAll();
+          console.log('[UA-HN] Total segments:', segments.length);
+          const streetNamesFound = new Set();
           for (const seg of segments) {
             const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+            if (segStreet) streetNamesFound.add(segStreet.name);
             if (segStreet && segStreet.name === streetName) {
               streetId = segStreet.id;
               console.log('[UA-HN] Found street via segment', { streetName, streetId });
@@ -1308,6 +1311,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
             }
             if (streetId) break;
           }
+          console.log('[UA-HN] Street names in view:', Array.from(streetNamesFound).slice(0, 20));
         }
 
         if (!streetId) {
