@@ -1277,12 +1277,22 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         // Find the WME street ID by name
         let streetId = null;
         
-        // First try direct lookup
-        let street = wmeSDK.DataModel.Streets.getStreet({ streetName: streetName });
+        // Try various name variants
+        const nameVariants = [
+          streetName, // Original
+          normalizeForComparison(streetName), // Normalized
+          streetName + ' пров.',
+          streetName + ' вулиця',
+          streetName.replace(/\s+(пров|вулиця|просп|бульв)$/i, '')
+        ];
         
-        if (street) {
-          streetId = street.id;
-          console.log('[UA-HN] Found street directly', { streetName, streetId });
+        for (const nameToTry of nameVariants) {
+          let street = wmeSDK.DataModel.Streets.getStreet({ streetName: nameToTry });
+          if (street) {
+            streetId = street.id;
+            console.log('[UA-HN] Found street directly', { streetName, matched: nameToTry, streetId });
+            break;
+          }
         }
         
         // If not found directly, search through segments
@@ -1291,21 +1301,25 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           const segments = wmeSDK.DataModel.Segments.getAll();
           console.log('[UA-HN] Total segments:', segments.length);
           const streetNamesFound = new Set();
+          const normalizedTarget = normalizeForComparison(streetName);
           for (const seg of segments) {
             const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
-            if (segStreet) streetNamesFound.add(segStreet.name);
-            if (segStreet && segStreet.name === streetName) {
-              streetId = segStreet.id;
-              console.log('[UA-HN] Found street via segment', { streetName, streetId });
-              break;
+            if (segStreet) {
+              streetNamesFound.add(segStreet.name);
+              // Check both exact match and normalized match
+              if (normalizeForComparison(segStreet.name) === normalizedTarget) {
+                streetId = segStreet.id;
+                console.log('[UA-HN] Found street via segment (normalized)', { streetName, matched: segStreet.name, streetId });
+                break;
+              }
             }
             // Check alternate streets
             const altIds = seg.alternateStreetIds || [];
             for (const altId of altIds) {
               const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
-              if (altStreet && altStreet.name === streetName) {
+              if (altStreet && normalizeForComparison(altStreet.name) === normalizedTarget) {
                 streetId = altStreet.id;
-                console.log('[UA-HN] Found street via alternate', { streetName, streetId });
+                console.log('[UA-HN] Found street via alternate (normalized)', { streetName, matched: altStreet.name, streetId });
                 break;
               }
             }
