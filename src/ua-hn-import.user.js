@@ -1266,39 +1266,16 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
 
       try {
         // Create Residence Point Place using Venues API
-        // First, find the WME street ID by name
+        // Find the WME street ID by name
         let streetId = null;
-        let cityId = null;
         
-        // Try to get cityId from selected segment
-        const selected = wmeSDK.Editing.getSelection();
-        if (selected?.objects?.[0]) {
-          const obj = wmeSDK.DataModel.Objects.getById({ objectId: selected.objects[0].id });
-          cityId = obj?.address?.cityId;
-        }
-        
-        // Find street by name (with cityId if available)
+        // Direct street lookup
         const street = wmeSDK.DataModel.Streets.getStreet({
-          cityId: cityId || undefined,
           streetName: streetName
         });
         
         if (street) {
           streetId = street.id;
-        } else {
-          // Fallback: search in nearby segments
-          const segments = wmeSDK.DataModel.Segments.getInBoundingBox({
-            topLeft: { lat: feature.lat + 0.001, lon: feature.lon - 0.001 },
-            bottomRight: { lat: feature.lat - 0.001, lon: feature.lon + 0.001 }
-          });
-          for (const seg of segments) {
-            const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
-            if (normalizeForComparison(segStreet?.name || '') === normalizeForComparison(streetName)) {
-              streetId = seg.primaryStreetId;
-              cityId = segStreet?.cityId;
-              break;
-            }
-          }
         }
         
         if (!streetId) {
@@ -2005,8 +1982,6 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         'DataModel.Venues.getAddress',
         'DataModel.Streets.getStreet',
         'DataModel.Streets.getById',
-        'DataModel.Segments.getInBoundingBox',
-        'DataModel.Objects.getById',
         'Editing.getSelection'
       ];
       const missing = required.filter(path => {
