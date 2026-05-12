@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.5.4
+// @version      1.6.0
 // @description  Швидке додавання Residence точок (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -14,9 +14,6 @@
 // @match        https://livemap.waze.com/*
 // @match        https://www.waze.com/*
 // @exclude      https://www.waze.com/user/editor*
-// @connect      overpass.kumi.systems
-// @connect      overpass-api.de
-// @connect      overpass.openstreetmap.ru
 // @connect      stat.waze.com.ua
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
@@ -25,14 +22,11 @@
 // ==/UserScript==
 
 /*
- * Click handling and nearest segment matching based on work by
- * Tom 'Glodenox' Puttemans (https://github.com/Glodenox/wme-quick-hn-importer)
- *
  * Ukrainian adaptation based on:
  * - https://github.com/zigapovhe/wme-sl-hn-import (Slovenia version)
  * - https://github.com/waze-ua/WME-UA-address-data (UA address polygons)
  *
- * Data source: OpenStreetMap via Overpass API (addr:housenumber, addr:street tags)
+ * Data source: Держреєстр (stat.waze.com.ua) — Waze Ukraine address database
  * Projection: WGS84 (EPSG:4326) — no reprojection needed
  */
 
@@ -48,13 +42,6 @@
   const MAX_CLICK_DISTANCE_PX = 25;
   const MAX_HN_CONFLICT_DISTANCE = 10;
 
-  // Overpass API endpoints (CORS-friendly, try in order)
-  const OVERPASS_ENDPOINTS = [
-    'https://overpass.kumi.systems/api/interpreter',
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.openstreetmap.ru/api/interpreter'
-  ];
-const OVERPASS_TIMEOUT = 60000; // 60 seconds
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
 
   // Common Ukrainian street name abbreviations
@@ -465,7 +452,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     "Краснослобідська": "Праведників світу"
   };
 
-  // Build reverse mapping for bidirectional lookup (OSM may return new or old name)
+  // Build reverse mapping for bidirectional lookup (Держреєстр may have old or new name)
   const STREET_RENAMES_REVERSE = {};
   for (const [old, current] of Object.entries(STREET_RENAMES)) {
     STREET_RENAMES_REVERSE[current] = old;
@@ -483,9 +470,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     getSelectedOnly() { return localStorage.getItem('qhnua-selected-only') === '1'; },
     setSelectedOnly(v){ localStorage.setItem('qhnua-selected-only', v ? '1' : '0'); },
     getNavPoints()    { return localStorage.getItem('qhnua-navpoints') === '1'; },
-    setNavPoints(v)   { localStorage.setItem('qhnua-navpoints', v ? '1' : '0'); },
-    getSource()       { return localStorage.getItem('qhnua-source') || 'osm'; },  // 'osm' or 'waze'
-    setSource(v)      { localStorage.setItem('qhnua-source', v); }
+    setNavPoints(v)   { localStorage.setItem('qhnua-navpoints', v ? '1' : '0'); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -519,7 +504,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     let normalized = String(name).trim();
 
     // Apply street renames first (check both old->new and new->old)
-    // OSM data may have either old or new street names
+    // Держреєстр data may have either old or new street names
     const lower = normalized.toLowerCase();
     normalized = STREET_RENAMES[normalized] || STREET_RENAMES[lower] ||
                  STREET_RENAMES_REVERSE[normalized] || STREET_RENAMES_REVERSE[lower] || normalized;
@@ -648,114 +633,6 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       }
     }
     return false;
-  }
-
-  // Fetch addresses from Overpass API (OSM) with fallback endpoints
-  function fetchAddresses(centerLat, centerLon, radius, endpointIndex = 0) {
-    return new Promise((resolve, reject) => {
-      const query = `
-        [out:json][timeout:25];
-        (
-          node["addr:housenumber"](around:${Math.round(radius)},${centerLat},${centerLon});
-          way["addr:housenumber"](around:${Math.round(radius)},${centerLat},${centerLon});
-        );
-        out center;
-      `;
-
-      const url = OVERPASS_ENDPOINTS[endpointIndex] || OVERPASS_ENDPOINTS[0];
-
-      GM_xmlhttpRequest({
-        method: 'POST',
-        url: url,
-        timeout: OVERPASS_TIMEOUT,
-        data: 'data=' + encodeURIComponent(query),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        onload: function (response) {
-          try {
-            const text = response.responseText.trim();
-            if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
-              throw new Error('API returned HTML instead of JSON');
-            }
-
-            const data = JSON.parse(text);
-
-            if (!data.elements || data.elements.length === 0) {
-              resolve({ features: [], streets: {}, streetNames: {} });
-              return;
-            }
-
-            const features = [];
-            const streetNames = {};
-            const streets = {};
-
-            for (const el of data.elements) {
-              const tags = el.tags || {};
-              const street = tags['addr:street'] || tags['addr:full'];
-              const houseNumber = tags['addr:housenumber'];
-
-              if (!houseNumber || !street) continue;
-
-              let lat, lon;
-              if (el.type === 'way' && el.center) {
-                lat = el.center.lat;
-                lon = el.center.lon;
-              } else {
-                lat = el.lat;
-                lon = el.lon;
-              }
-
-              if (lat == null || lon == null) continue;
-
-              const streetId = normalizeStreetName(street);
-              if (!streets[street]) {
-                streets[street] = streetId;
-                streetNames[streetId] = street;
-              }
-
-              features.push({
-                number: String(houseNumber).toLowerCase(),
-                street: streetId,
-                streetRaw: street,
-                houseNumberRaw: houseNumber,
-                lat: lat,
-                lon: lon,
-                city: tags['addr:city'] || tags['is_in:city'] || '',
-                district: tags['addr:district'] || tags['addr:subdistrict'] || ''
-              });
-            }
-
-            resolve({ features, streets, streetNames });
-          } catch (err) {
-            // Try next endpoint if available
-            if (endpointIndex < OVERPASS_ENDPOINTS.length - 1) {
-              toast(`Спроба іншого сервера Overpass...`, 'warning');
-              fetchAddresses(centerLat, centerLon, radius, endpointIndex + 1).then(resolve).catch(reject);
-            } else {
-              reject(err);
-            }
-          }
-        },
-        onerror: function (err) {
-          // Try next endpoint on error
-          if (endpointIndex < OVERPASS_ENDPOINTS.length - 1) {
-            fetchAddresses(centerLat, centerLon, radius, endpointIndex + 1).then(resolve).catch(reject);
-          } else {
-            reject(err);
-          }
-        },
-        ontimeout: function () {
-          // Try next endpoint on timeout
-          if (endpointIndex < OVERPASS_ENDPOINTS.length - 1) {
-            toast(`Таймаут, спроба іншого сервера...`, 'warning');
-            fetchAddresses(centerLat, centerLon, radius, endpointIndex + 1).then(resolve).catch(reject);
-          } else {
-            reject(new Error('Всі сервери Overpass API недоступні'));
-          }
-        }
-      });
-    });
   }
 
   // Fetch addresses from Waze Ukraine state register (stat.waze.com.ua)
@@ -1429,8 +1306,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
-            <label style="margin-right:12px;"><input type="radio" name="qhnua-source" value="osm"> OSM (Overpass)</label>
-            <label><input type="radio" name="qhnua-source" value="waze"> Держреєстр (stat.waze.com.ua)</label>
+            <span style="color:#0066cc;font-weight:bold;">Джерело: Держреєстр (stat.waze.com.ua)</span>
           </div>
           <div id="hn-status" style="margin-top:10px;font-size:12px;color:#666;line-height:1.4;">
             <b>Інструкція</b><br/>
@@ -1495,13 +1371,6 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         setChecked(chkSelectedOnly, newState);
         LS.setSelectedOnly(newState);
         applyFeatureFilter();
-      });
-
-      tabPane.querySelectorAll('input[name="qhnua-source"]').forEach(r => {
-        r.checked = (r.value === LS.getSource());
-        r.addEventListener('change', () => {
-          if (r.checked) LS.setSource(r.value);
-        });
       });
 
       async function loadSelectedStreet() {
@@ -1873,7 +1742,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           radius = Math.max(radius, userBuffer);
 
           Promise.all([
-            LS.getSource() === 'waze' ? fetchAddressesWaze(centerLat, centerLon, radius) : fetchAddresses(centerLat, centerLon, radius),
+            fetchAddressesWaze(centerLat, centerLon, radius),
             getVisibleHNsByStreet()
           ])
             .then(([apiResult, selectionHNMap]) => {
