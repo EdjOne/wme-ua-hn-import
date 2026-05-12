@@ -1394,7 +1394,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
 
       tabPane.innerHTML = `
         <div id="qhnua-pane" style="padding:10px;">
-          <h2 style="margin-top:0;">Швидкий імпорт 🇺🇦</h2>
+          <h2 style="margin-top:0;">Швидкий імпорт <span style="background:linear-gradient(to bottom,#005BBB 0 50%,#FFD500 50% 100%);background-size:16px 16px;height:16px;width:16px;display:inline-block;vertical-align:middle;margin-left:4px;border:1px solid #ccc;"></span></h2>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px 0;">
             <button id="hn-load" class="wz-button"><span id="hn-load-label">Завантажити вулицю</span> <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+L</kbd></button>
             <button id="hn-clear" class="wz-button wz-button--secondary">Очистити <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+K</kbd></button>
