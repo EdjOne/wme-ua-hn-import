@@ -46,7 +46,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.3.3 (fixed full street type suffix matching)
+│   └── ua-hn-import.user.js  # v1.3.4 (alternate street name matching)
 └── data/
     └── test-bbox.json
 ```
