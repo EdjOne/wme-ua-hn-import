@@ -11,6 +11,8 @@
 // @match        https://www.waze.com/editor*
 // @match        https://www.waze.com/*/editor*
 // @match        https://beta.waze.com/*
+// @match        https://livemap.waze.com/*
+// @match        https://www.waze.com/*
 // @exclude      https://www.waze.com/user/editor*
 // @connect      overpass.kumi.systems
 // @connect      overpass-api.de
