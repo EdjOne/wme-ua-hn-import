@@ -1266,7 +1266,45 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
 
       try {
         // Create Residence Point Place using Venues API
-        const streetId = feature.street; // Already normalized to OSM format
+        // First, find the WME street ID by name
+        let streetId = null;
+        let cityId = null;
+        
+        // Try to get cityId from selected segment
+        const selected = wmeSDK.Editing.getSelection();
+        if (selected?.objects?.[0]) {
+          const obj = wmeSDK.DataModel.Objects.getById({ objectId: selected.objects[0].id });
+          cityId = obj?.address?.cityId;
+        }
+        
+        // Find street by name (with cityId if available)
+        const street = wmeSDK.DataModel.Streets.getStreet({
+          cityId: cityId || undefined,
+          streetName: streetName
+        });
+        
+        if (street) {
+          streetId = street.id;
+        } else {
+          // Fallback: search in nearby segments
+          const segments = wmeSDK.DataModel.Segments.getInBoundingBox({
+            topLeft: { lat: feature.lat + 0.001, lon: feature.lon - 0.001 },
+            bottomRight: { lat: feature.lat - 0.001, lon: feature.lon + 0.001 }
+          });
+          for (const seg of segments) {
+            const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+            if (normalizeForComparison(segStreet?.name || '') === normalizeForComparison(streetName)) {
+              streetId = seg.primaryStreetId;
+              cityId = segStreet?.cityId;
+              break;
+            }
+          }
+        }
+        
+        if (!streetId) {
+          throw new Error(`Вулицю "${streetName}" не знайдено на карті`);
+        }
+
         const geometry = {
           type: 'Point',
           coordinates: [feature.lon, feature.lat]
@@ -1300,7 +1338,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         toast(`Додано Residence ${houseNumber} 🏠`, 'success');
       } catch (err) {
         console.error('[UA-HN] Помилка додавання Residence:', err);
-        toast('Помилка додавання Residence', 'error');
+        toast(err.message || 'Помилка додавання Residence', 'error');
       }
     }
 
@@ -1964,7 +2002,12 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         'DataModel.Venues.addVenue',
         'DataModel.Venues.updateAddress',
         'DataModel.Venues.updateVenueIsResidential',
-        'DataModel.Venues.getAddress'
+        'DataModel.Venues.getAddress',
+        'DataModel.Streets.getStreet',
+        'DataModel.Streets.getById',
+        'DataModel.Segments.getInBoundingBox',
+        'DataModel.Objects.getById',
+        'Editing.getSelection'
       ];
       const missing = required.filter(path => {
         const parts = path.split('.');
