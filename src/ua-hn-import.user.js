@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.3.4
-// @description  Швидке додавання номерів будинків (Україна) через клікабельні точки на карті
+// @version      1.4.0
+// @description  Швидке додавання Residence точок (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
 // @updateURL    https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -1262,31 +1262,17 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       const streetName = streetNames[feature.street];
       const houseNumber = feature.number;
 
-      let nearestSegment = findNearestSegment(feature, streetName, true);
-
-      if (!nearestSegment) {
-        nearestSegment = findNearestSegment(feature, streetName, false);
-
-        if (!nearestSegment) {
-          toast('Не знайдено поблизу сегмента', 'warning');
-          return;
-        }
-
-        const nearestStreet = wmeSDK.DataModel.Streets.getById({ streetId: nearestSegment.primaryStreetId });
-        const nearestStreetName = nearestStreet?.name || 'Unknown';
-
-        if (!confirm(`Вулиця "${streetName}" не знайдена.\n\nДодати номер до "${nearestStreetName}"?`)) {
-          return;
-        }
-      }
-
-      wmeSDK.Editing.setSelection({ selection: { ids: [nearestSegment.id], objectType: 'segment' } });
-
       try {
-        wmeSDK.DataModel.HouseNumbers.addHouseNumber({
-          number: houseNumber,
-          point: { type: 'Point', coordinates: [feature.lon, feature.lat] },
-          segmentId: nearestSegment.id
+        // Create Residence Point Place
+        wmeSDK.DataModel.Objects.add({
+          geometry: {
+            type: 'Point',
+            coordinates: [feature.lon, feature.lat]
+          },
+          attributes: {
+            houseNumber: houseNumber,
+            categories: ['RESIDENCE_HOME']
+          }
         });
 
         feature.userAdded = true;
@@ -1294,88 +1280,12 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         feature.conflict = false;
         applyFeatureFilter();
 
-        console.log('[UA-HN] Додано номер будинку', houseNumber);
-        toast(`Додано номер ${houseNumber} 🏠`, 'success');
+        console.log('[UA-HN] Додано Residence', houseNumber);
+        toast(`Додано Residence ${houseNumber} 🏠`, 'success');
       } catch (err) {
-        console.error('[UA-HN] Помилка додавання номера:', err);
-        toast('Помилка додавання номера будинку', 'error');
+        console.error('[UA-HN] Помилка додавання Residence:', err);
+        toast('Помилка додавання Residence', 'error');
       }
-    }
-
-    function findNearestSegment(feature, streetName, matchName) {
-      const point = { x: feature.lon, y: feature.lat };
-      const allSegments = wmeSDK.DataModel.Segments.getAll();
-      let candidateSegments = allSegments;
-
-      if (matchName) {
-        const matchingStreetIds = wmeSDK.DataModel.Streets.getAll()
-          .filter(street => street.name?.toLowerCase() === streetName.toLowerCase())
-          .map(street => street.id);
-
-        if (matchingStreetIds.length === 0) {
-          return null;
-        }
-
-        candidateSegments = allSegments.filter(segment => {
-          const primaryMatch = matchingStreetIds.includes(segment.primaryStreetId);
-          const altMatch = (segment.alternateStreetIds || []).some(id => matchingStreetIds.includes(id));
-          return primaryMatch || altMatch;
-        });
-      }
-
-      if (candidateSegments.length === 0) {
-        return null;
-      }
-
-      let nearestSegment = null;
-      let minDistance = Infinity;
-
-      candidateSegments.forEach(segment => {
-        const coords = segment.geometry?.coordinates;
-        if (!Array.isArray(coords) || coords.length < 2) return;
-        const distance = pointToLineDistance(point, coords);
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearestSegment = segment;
-        }
-      });
-
-      return nearestSegment;
-    }
-
-    function pointToLineDistance(point, coords) {
-      const px = point.x;
-      const py = point.y;
-      let minDist = Infinity;
-      for (let i = 0; i < coords.length - 1; i++) {
-        const [x1, y1] = coords[i];
-        const [x2, y2] = coords[i + 1];
-        const dist = pointToSegmentDistance(px, py, x1, y1, x2, y2);
-        if (dist < minDist) minDist = dist;
-      }
-      return minDist;
-    }
-
-    function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const lengthSquared = dx * dx + dy * dy;
-
-      if (lengthSquared === 0) {
-        const dpx = px - x1;
-        const dpy = py - y1;
-        return Math.sqrt(dpx * dpx + dpy * dpy);
-      }
-
-      let t = ((px - x1) * dx + (py - y1) * dy) / lengthSquared;
-      t = Math.max(0, Math.min(1, t));
-
-      const closestX = x1 + t * dx;
-      const closestY = y1 + t * dy;
-
-      const dpx = px - closestX;
-      const dpy = py - closestY;
-      return Math.sqrt(dpx * dpx + dpy * dpy);
     }
 
     const loading = document.createElement('div');
@@ -2028,24 +1938,14 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     wmeSDK = getWmeSdk({ scriptId: 'quick-hn-ua-importer', scriptName: 'Quick HN Importer (UA)' });
     wmeSDK.Events.once({ eventName: 'wme-ready' }).then(() => {
       const required = [
-        'DataModel.Segments.getAll',
-        'DataModel.Segments.getById',
-        'DataModel.Streets.getAll',
-        'DataModel.Streets.getById',
-        'DataModel.Streets.getStreet',
-        'DataModel.HouseNumbers.fetchHouseNumbers',
-        'DataModel.HouseNumbers.addHouseNumber',
-        'DataModel.Segments.updateAddress',
-        'DataModel.Streets.addStreet',
-        'Editing.setSelection',
-        'Editing.getSelection',
         'Map.addLayer',
         'Map.addFeaturesToLayer',
         'Map.removeFeaturesFromLayer',
         'Map.setLayerVisibility',
         'Map.getZoomLevel',
         'Map.getMapExtent',
-        'Map.getMapPixelFromLonLat'
+        'Map.getMapPixelFromLonLat',
+        'DataModel.Objects.add'
       ];
       const missing = required.filter(path => {
         const parts = path.split('.');
