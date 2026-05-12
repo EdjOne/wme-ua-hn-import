@@ -46,7 +46,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.4.0 (Residence Point Places)
+│   └── ua-hn-import.user.js  # v1.5.0 (Residence via Venues API)
 └── data/
     └── test-bbox.json
 ```
