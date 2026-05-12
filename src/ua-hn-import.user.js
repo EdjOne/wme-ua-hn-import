@@ -1241,6 +1241,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       let bestDistSq = Infinity;
 
       for (const f of lastFeatures) {
+        console.log('[UA-HN] Checking feature', { lon: f.lon, lat: f.lat, number: f.number });
         if (f.lon == null || f.lat == null) continue;
         const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
         if (!fPx) continue;
