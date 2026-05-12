@@ -1313,6 +1313,14 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           isResidential: true
         });
 
+        // Select the new venue to open edit panel
+        wmeSDK.Editing.setSelection({
+          selection: {
+            ids: [String(venueId)],
+            objectType: 'venue'
+          }
+        });
+
         console.log('[UA-HN] Residence created:', { venueId, streetId, houseNumber });
 
         feature.userAdded = true;
@@ -1992,7 +2000,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         'DataModel.Venues.getAddress',
         'DataModel.Streets.getStreet',
         'DataModel.Streets.getById',
-        'Editing.getSelection'
+        'Editing.setSelection'
       ];
       const missing = required.filter(path => {
         const parts = path.split('.');
