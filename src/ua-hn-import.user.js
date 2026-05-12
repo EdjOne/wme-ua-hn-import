@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.7.0
+// @version      1.7.1
 // @description  Швидке додавання Residence точок (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -1697,6 +1697,11 @@
 
           loading.style.display = null;
 
+          // Get city from selected segment
+          const cityId = selectedSegments[0]?.cityId;
+          const city = cityId ? wmeSDK.DataModel.Cities.getById({ cityId })?.name : null;
+          console.log('[UA-HN] Selected city:', city);
+
           // Compute bounding box of selected segments to get center
           let minLon = Infinity, maxLon = -Infinity;
           let minLat = Infinity, maxLat = -Infinity;
@@ -1743,6 +1748,7 @@
               }
 
               const { features: apiFeatures, streets: newStreets, streetNames: newStreetNames } = apiResult;
+              console.log('[UA-HN] API returned', apiFeatures.length, 'features');
               streets = newStreets;
               streetNames = newStreetNames;
 
@@ -1750,6 +1756,13 @@
 
               for (const item of apiFeatures) {
                 if (!item.lat || !item.lon) continue;
+
+                // Filter by city if we have one selected
+                if (city && item.city) {
+                  const normalizedCity = city.toLowerCase().replace('м.', '').trim();
+                  const normalizedItemCity = (item.city || '').toLowerCase().replace('м.', '').trim();
+                  if (normalizedItemCity !== normalizedCity) continue;
+                }
 
                 const entry = selectionHNMap.get(item.street);
                 const processed = entry?.set.has(item.number) === true;
