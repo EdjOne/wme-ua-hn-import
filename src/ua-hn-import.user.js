@@ -1233,7 +1233,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
 
     function handleMapClick(evt) {
       console.log('[UA-HN] handleMapClick', { hasFeatures: !!lastFeatures.length, visible: userWantsLayerVisible });
-      if (!userWantsLayerVisible || !lastFeatures.length) return;
+      if (!lastFeatures.length) return;
       if (evt == null || evt.x == null || evt.y == null) return;
 
       const MAX_PIXELS_SQ = MAX_CLICK_DISTANCE_PX * MAX_CLICK_DISTANCE_PX;
@@ -1502,6 +1502,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       btnClear.addEventListener('click', clearLayer);
 
       applyFeatureFilter = function () {
+        console.log('[UA-HN] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length, currentStreetId });
         const onlyMissing  = chkMissing?.hasAttribute('checked');
         const selectedOnly = chkSelectedOnly?.hasAttribute('checked');
         const visible = lastFeatures.filter(feat => {
