@@ -1083,7 +1083,8 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       html += `<div style="max-height:150px;overflow-y:auto;border:1px solid #ddd;border-radius:4px;background:#fafafa;">`;
 
       sorted.forEach(([name, _count], index) => {
-        const isMatch = normalizeForComparison(name) === normalizedWmeName;
+        const normalized = normalizeForComparison(name);
+        const isMatch = normalizedWmeNames.includes(normalized);
         const isSuggestion = name === suggestedMatch;
         const escapedName = escapeHtml(name);
 
