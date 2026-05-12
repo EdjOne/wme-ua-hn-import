@@ -1230,11 +1230,14 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       analyzeStreetMatches();
     }
 
-
     function handleMapClick(evt) {
-      console.log('[UA-HN] handleMapClick', { hasFeatures: !!lastFeatures.length, visible: userWantsLayerVisible });
+      console.log('[UA-HN] handleMapClick', { hasFeatures: !!lastFeatures.length, evt });
       if (!lastFeatures.length) return;
-      if (evt == null || evt.x == null || evt.y == null) return;
+      
+      // Support both coordinate formats
+      const x = evt.x ?? evt.clientX ?? evt.layerX;
+      const y = evt.y ?? evt.clientY ?? evt.layerY;
+      if (x == null || y == null) return;
 
       const MAX_PIXELS_SQ = MAX_CLICK_DISTANCE_PX * MAX_CLICK_DISTANCE_PX;
       let bestFeature = null;
@@ -1245,20 +1248,22 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         if (f.lon == null || f.lat == null) continue;
         const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
         if (!fPx) continue;
-        const dx = fPx.x - evt.x;
-        const dy = fPx.y - evt.y;
+        const dx = fPx.x - x;
+        const dy = fPx.y - y;
         const d2 = dx * dx + dy * dy;
+        console.log('[UA-HN] Dist check', { number: f.number, d2, max: MAX_PIXELS_SQ });
         if (d2 <= MAX_PIXELS_SQ && d2 < bestDistSq) {
           bestDistSq = d2;
           bestFeature = f;
         }
       }
 
+      console.log('[UA-HN] Best feature', { bestFeature: bestFeature?.number });
       if (!bestFeature) return;
       onFeatureClick(bestFeature);
     }
 
-    wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
+    wmeSDK.Events.on({ eventName: 'wme-map-click', eventHandler: handleMapClick });
 
     function onFeatureClick(feature) {
       console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number, street: feature.street });
