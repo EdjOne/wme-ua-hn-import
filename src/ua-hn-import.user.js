@@ -1361,6 +1361,18 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           isResidential: true
         });
 
+        // Add entry point for navigation
+        wmeSDK.DataModel.Venues.replaceNavigationPoints({
+          venueId: String(venueId),
+          navigationPoints: [{
+            isEntry: true,
+            isExit: true,
+            isPrimary: true,
+            name: '',
+            point: { type: 'Point', coordinates: [feature.lon, feature.lat] }
+          }]
+        });
+
         // Select the new venue to open edit panel
         wmeSDK.Editing.setSelection({
           selection: {
@@ -2046,6 +2058,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         'DataModel.Venues.updateVenue',
         'DataModel.Venues.updateAddress',
         'DataModel.Venues.updateVenueIsResidential',
+        'DataModel.Venues.replaceNavigationPoints',
         'DataModel.Venues.getAddress',
         'DataModel.Streets.getStreet',
         'DataModel.Streets.getById',
