@@ -1232,6 +1232,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
 
 
     function handleMapClick(evt) {
+      console.log('[UA-HN] handleMapClick', { hasFeatures: !!lastFeatures.length, visible: userWantsLayerVisible });
       if (!userWantsLayerVisible || !lastFeatures.length) return;
       if (evt == null || evt.x == null || evt.y == null) return;
 
@@ -1259,6 +1260,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
 
     function onFeatureClick(feature) {
+      console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number, street: feature.street });
       if (feature.processed) return;
 
       const streetName = streetNames[feature.street];
@@ -1305,6 +1307,8 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           venueId: String(venueId),
           isResidential: true
         });
+
+        console.log('[UA-HN] Residence created:', { venueId, streetId, houseNumber });
 
         feature.userAdded = true;
         feature.processed = true;
