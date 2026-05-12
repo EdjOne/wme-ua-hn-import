@@ -1263,7 +1263,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
       onFeatureClick(bestFeature);
     }
 
-    wmeSDK.Events.on({ eventName: 'wme-map-click', eventHandler: handleMapClick });
+    wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
 
     function onFeatureClick(feature) {
       console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number, street: feature.street });
