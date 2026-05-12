@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick HN Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.3.3
+// @version      1.3.4
 // @description  Швидке додавання номерів будинків (Україна) через клікабельні точки на карті
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -967,17 +967,34 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
     wmeSDK.Events.on({ eventName: 'wme-map-move-end', eventHandler: updateLayerVisibility });
     wmeSDK.Events.on({ eventName: 'wme-selection-changed', eventHandler: onSelectionChanged });
 
-    // Get current WME street name from selection
-    function getWmeStreetName() {
+    // Get all WME street names from selection (primary + alternate)
+    function getWmeStreetNames() {
       const selectedSegments = getSelectedSegments();
-      if (selectedSegments.length === 0) return null;
+      if (selectedSegments.length === 0) return [];
 
-      const seg = selectedSegments[0];
-      const primaryStreetId = seg.primaryStreetId;
-      if (!primaryStreetId) return null;
+      const names = [];
+      const seen = new Set();
 
-      const street = wmeSDK.DataModel.Streets.getById({ streetId: primaryStreetId });
-      return street?.name || null;
+      selectedSegments.forEach(seg => {
+        // Primary
+        if (seg.primaryStreetId) {
+          const street = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+          if (street?.name && !seen.has(street.name.toLowerCase())) {
+            names.push(street.name);
+            seen.add(street.name.toLowerCase());
+          }
+        }
+        // Alternate
+        (seg.alternateStreetIds || []).forEach(id => {
+          const street = wmeSDK.DataModel.Streets.getById({ streetId: id });
+          if (street?.name && !seen.has(street.name.toLowerCase())) {
+            names.push(street.name);
+            seen.add(street.name.toLowerCase());
+          }
+        });
+      });
+
+      return names;
     }
 
     // Analyze street name matches and update UI
@@ -988,7 +1005,7 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         return;
       }
 
-      const wmeStreetName = getWmeStreetName();
+      const wmeStreetNames = getWmeStreetNames();
 
       // Count addresses per official street name
       const streetCounts = {};
@@ -1007,21 +1024,29 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
         return;
       }
 
-      // Check how many match current WME street
-      // Normalize WME name for comparison (remove вул./пров. prefix, lowercase)
-      const normalizedWmeName = normalizeForComparison(wmeStreetName);
-      const matchCount = wmeStreetName ? Object.entries(streetCounts).reduce((count, [name]) => {
-        return count + (normalizeForComparison(name) === normalizedWmeName ? streetCounts[name] : 0);
-      }, 0) : 0;
-      const hasMismatch = wmeStreetName && matchCount === 0 && sorted.length > 0;
+      // Check how many match any WME street (primary or alternate)
+      // Normalize all WME names for comparison
+      const normalizedWmeNames = wmeStreetNames.map(n => normalizeForComparison(n));
+      let matchCount = 0;
+      if (wmeStreetNames.length > 0) {
+        Object.entries(streetCounts).forEach(([name, count]) => {
+          const normalized = normalizeForComparison(name);
+          if (normalizedWmeNames.includes(normalized)) {
+            matchCount += count;
+          }
+        });
+      }
+      const hasMismatch = wmeStreetNames.length > 0 && matchCount === 0 && sorted.length > 0;
 
       // Find fuzzy match if there's a mismatch
       let suggestedMatch = null;
       let suggestionSimilarity = 0;
 
-      if (hasMismatch && wmeStreetName) {
+      if (hasMismatch && wmeStreetNames.length > 0) {
+        // Use first WME name for fuzzy matching
+        const primaryWmeName = wmeStreetNames[0];
         for (const [name] of sorted) {
-          const similarity = calculateSimilarity(wmeStreetName, name);
+          const similarity = calculateSimilarity(primaryWmeName, name);
           if (similarity > 0.7 && similarity > suggestionSimilarity) {
             suggestedMatch = name;
             suggestionSimilarity = similarity;
@@ -1105,8 +1130,8 @@ const OVERPASS_TIMEOUT = 60000; // 60 seconds
           e.stopPropagation();
           const streetName = btn.getAttribute('data-street');
 
-          const currentWmeStreet = getWmeStreetName();
-          if (currentWmeStreet === streetName) {
+          const currentWmeStreets = getWmeStreetNames();
+          if (currentWmeStreets.includes(streetName)) {
             toast('Назва вулиці вже встановлена', 'info');
             return;
           }
