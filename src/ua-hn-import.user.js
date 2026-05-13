@@ -1770,14 +1770,26 @@
 
                 // Filter by city if we have one selected
                 if (city && item.city) {
-                  const normalizeCity = (c) => c.toLowerCase()
-                    .replace(/^с\.?\s*/, '')
-                    .replace(/^м\.?\s*/, '')
-                    .replace(/\s+/, ' ')
-                    .trim();
+                  const normalizeCity = (c) => {
+                    let s = c.toLowerCase()
+                      .replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '');
+                    // Если есть "с. название" или "м. название" - оставляем только название
+                    const match = s.match(/\s+(с\.?|м\.?)\s*(\w+)$/i);
+                    if (match) return match[2];
+                    // Иначе убираем суффиксы
+                    return s.replace(/\s+сільська\s+рада.*$/i, '')
+                      .replace(/\s+міська\s+рада.*$/i, '')
+                      .replace(/\s+районна\s+рада.*$/i, '')
+                      .replace(/\s+область$/i, '').replace(/\s+громади?$/i, '')
+                      .replace(/\s+о\.?о\.?$/i, '').trim();
+                  };
                   const normalizedCity = normalizeCity(city);
                   const normalizedItemCity = normalizeCity(item.city);
-                  if (normalizedItemCity !== normalizedCity) continue;
+                  console.log('[UA-HN] City compare:', city, '->', normalizedCity, 'vs', item.city, '->', normalizedItemCity);
+                  const match = normalizedItemCity === normalizedCity ||
+                    normalizedItemCity.includes(normalizedCity) ||
+                    normalizedCity.includes(normalizedItemCity);
+                  if (!match) continue;
                 }
 
                 const entry = selectionHNMap.get(item.street);
