@@ -45,7 +45,15 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.7.3 (без navpoints, упрощённый UI)
+│   └── ua-hn-import.user.js  # v1.7.4 (RPP, защита от создания без названия улицы)
+
+## 📊 UA-RPP Статус
+
+- [x] Парсинг nameParts из address_map.php
+- [x] Получение cityId через street вместо segment
+- [x] Защита: RPP не создаётся если улица без названия
+- [x] Удалён функционал navpoints
+- [x] Переименованы UI элементы (UA-HN → UA-RPP)
 └── data/
     └── test-bbox.json
 ```
