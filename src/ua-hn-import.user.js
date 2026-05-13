@@ -738,6 +738,7 @@
 
               if (!houseNumber) continue;
 
+              const normalizedHN = normalizeHouseNumber(houseNumber);
               const streetId = normalizeStreetName(street);
               if (!streets[street]) {
                 streets[street] = streetId;
@@ -745,10 +746,10 @@
               }
 
               features.push({
-                number: houseNumber.toLowerCase(),
+                number: normalizedHN,
                 street: streetId,
                 streetRaw: street,
-                houseNumberRaw: houseNumber,
+                houseNumberRaw: normalizedHN,
                 lat: lat,
                 lon: lon,
                 city: city,
