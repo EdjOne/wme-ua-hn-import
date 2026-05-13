@@ -549,8 +549,9 @@
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
-  // Normalize house number: fix fractions and letter case
+// Normalize house number: fix fractions and letter case
   // - Fix "7/ 1" → "7/1" (remove space before /)
+  // - Fix incomplete fraction "2/" → "2/1"
   // - Letter numbers: uppercase Cyrillic except І, З, О → lowercase і, з, о
   // - No space between digit and letter: "2А" not "2 А"
   function normalizeHouseNumber(num) {
@@ -559,6 +560,9 @@
     
     // Fix fractions: "7/ 1" → "7/1" (space after / or before digit)
     normalized = normalized.replace(/\s*\/\s*/g, '/');
+    
+    // Fix incomplete fraction: "2/" → "2/1"
+    normalized = normalized.replace(/\/$/, '/1');
     
     // Ensure no space between digit and letter: "2 А" → "2А"
     normalized = normalized.replace(/(\d)\s+([А-Яа-яІіЇїЄєҐґ])/g, '$1$2');
