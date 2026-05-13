@@ -706,7 +706,7 @@
               if (lastLine.includes('б/н') || lastLine.includes('без номера')) {
                 continue;
               }
-              const numMatch = lastLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+[а-яА-Я\/]?)/i);
+              const numMatch = lastLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+(?:\/\d+)?[а-яА-Я]?)/i);
               if (numMatch) {
                 houseNumber = normalizeHouseNumber(numMatch[1]);
               }
