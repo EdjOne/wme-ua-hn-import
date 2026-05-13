@@ -563,11 +563,11 @@
     // Ensure no space between digit and letter: "2 А" → "2А"
     normalized = normalized.replace(/(\d)\s+([А-Яа-яІіЇїЄєҐґ])/g, '$1$2');
     
-    // Uppercase Cyrillic letters, but І, З, О → lowercase і, з, о
-    // Only for letter suffix at the end (e.g., "2А" → "2А", "2з" stays "2з")
-    normalized = normalized.replace(/([А-ЯІЇЄҐ])$/g, (match) => {
-      const lowerMap = { 'І': 'і', 'З': 'з', 'О': 'о' };
-      return lowerMap[match] || match;
+    // Uppercase Cyrillic letters, but І, З, О stay lowercase і, з, о
+    // Only for letter suffix at the end (e.g., "51а" → "51А", "51з" stays "51з")
+    normalized = normalized.replace(/([а-яіїєґ])$/g, (match) => {
+      const lowerMap = { 'і': 'і', 'з': 'з', 'о': 'о' };
+      return lowerMap[match] || match.toUpperCase();
     });
     
     return normalized;
