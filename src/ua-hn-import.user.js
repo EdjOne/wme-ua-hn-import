@@ -1194,7 +1194,7 @@
             const p2Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p2[0], lat: p2[1] } });
             
             const dist = pointToSegmentDist(featurePx.x, featurePx.y, p1Px.x, p1Px.y, p2Px.x, p2Px.y);
-            if (dist < minDist && dist < 50) { // 50 pixels threshold
+            if (dist < minDist) { // увеличен порог до 300px
               minDist = dist;
               nearestStreetId = seg.primaryStreetId;
             }
@@ -1202,6 +1202,7 @@
         }
         
         if (!nearestStreetId) {
+          console.warn('[UA-HN] Не знайдено сегментів. Мінімальна відстань:', minDist, 'px');
           throw new Error('Не знайдено сегментів поруч з цим маркером');
         }
         
