@@ -661,7 +661,6 @@
               if (isNaN(lat) || isNaN(lon)) continue;
 
               const nameParts = item.name.trim().split('\n').map(p => p.trim()).filter(p => p);
-              console.log('[UA-HN] nameParts:', nameParts, 'raw name:', item.name);
 
               // Robust parsing for address_map.php format:
               // Format example: "Одеська обл.\n Овідіопольський р-н\n с. Мізікевича\n ж/масив Ульянівка\n масив Радужний\n ділянка 32"
@@ -671,18 +670,23 @@
               let houseNumber = '';
               let district = '';
 
-              // Find city (usually line starting with "с." or "м.")
+// Find city (line starting with "с."/"м.", "село", or contains city name pattern)
               for (const part of nameParts) {
-                const cityMatch = part.match(/^(с\.|м\.)\s*([А-Яа-яІіЇїЄєҐґ'\-\s]+)/i);
+                // Match "с. Майори", "с.Майори", "м. Київ", "село Майори", "село Майори"
+                const cityMatch = part.match(/^(с\.|м\.|село|місто)\s*([А-Яа-яІіЇїЄєҐґ'\\-\\s]+)|^(с|м|село|місто)\s*([А-Яа-яІіЇїЄєҐґ'\\-\\s]+)/i);
                 if (cityMatch) {
-                  city = cityMatch[2].trim();
+                  city = (cityMatch[2] || cityMatch[4] || '').trim();
                   break;
                 }
               }
 
               // Extract house number from last line (ділянка N, масив N, діл. N, буд. N, кв. N etc.)
               const lastLine = nameParts[nameParts.length - 1] || '';
-              const numMatch = lastLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+[а-яА-Я]?)/i);
+              // Skip "б/н" (без номера), "будинок", etc. - require actual number
+              if (lastLine.includes('б/н') || lastLine.includes('без номера')) {
+                continue;
+              }
+              const numMatch = lastLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+[а-яА-Я\\/]?)/i);
               if (numMatch) {
                 houseNumber = numMatch[1];
               }
