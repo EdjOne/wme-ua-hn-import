@@ -663,47 +663,56 @@
               const nameParts = item.name.trim().split('\n').map(p => p.trim()).filter(p => p);
               console.log('[UA-HN] nameParts:', nameParts, 'raw name:', item.name);
 
-              // Robust parsing - handle different formats:
-              // Format 1: "с. Майори\nОдеський р-н\nвул. Свободи\n12" (4 lines)
-              // Format 2: "с. Майори\nвул. Свободи 12" (2-3 lines, number at end)
+              // Robust parsing for address_map.php format:
+              // Format example: "Одеська обл.\n Овідіопольський р-н\n с. Мізікевича\n ж/масив Ульянівка\n масив Радужний\n ділянка 32"
+              // Last line contains house number (ділянка N, масив N, діл. N, буд. N, кв. N etc.)
               let city = '';
               let street = '';
               let houseNumber = '';
               let district = '';
 
-              if (nameParts.length >= 4) {
-                // Standard format: city, district, street, number
-                city = nameParts[0].replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '').trim();
-                district = nameParts[1].replace('р-н', '').trim();
-                street = nameParts[2].replace(/^(вул\.|пров\.)/, '').trim();
-                houseNumber = nameParts[3];
-              } else if (nameParts.length === 3) {
-                city = nameParts[0].replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '').trim();
-                // Could be district or street - check for "р-н"
-                if (nameParts[1].includes('р-н')) {
-                  district = nameParts[1].replace('р-н', '').trim();
-                  street = nameParts[2].replace(/^(вул\.|пров\.)/, '').trim();
-                  // Extract number from street if present
-                  const numMatch = street.match(/\s+(\d+[а-яА-Я]?)$/);
-                  if (numMatch) { houseNumber = numMatch[1]; street = street.replace(/\s+\d+[а-яА-Я]?$/, ''); }
-                } else {
-                  street = nameParts[1].replace(/^(вул\.|пров\.)/, '').trim();
-                  houseNumber = nameParts[2];
-                }
-              } else if (nameParts.length === 2) {
-                city = nameParts[0].replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '').trim();
-                // Street and number may be combined
-                const lastPart = nameParts[1];
-                const numMatch = lastPart.match(/\s+(\d+[а-яА-Я]?)$/);
-                if (numMatch) {
-                  houseNumber = numMatch[1];
-                  street = lastPart.substring(0, lastPart.lastIndexOf(numMatch[0])).replace(/^(вул\.|пров\.)/, '').trim();
-                } else {
-                  street = lastPart.replace(/^(вул\.|пров\.)/, '').trim();
+              // Find city (usually line starting with "с." or "м.")
+              for (const part of nameParts) {
+                const cityMatch = part.match(/^(с\.|м\.)\s*([А-Яа-яІіЇїЄєҐґ'\-\s]+)/i);
+                if (cityMatch) {
+                  city = cityMatch[2].trim();
+                  break;
                 }
               }
 
-              if (!houseNumber || !street) continue;
+              // Extract house number from last line (ділянка N, масив N, діл. N, буд. N, кв. N etc.)
+              const lastLine = nameParts[nameParts.length - 1] || '';
+              const numMatch = lastLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+[а-яА-Я]?)/i);
+              if (numMatch) {
+                houseNumber = numMatch[1];
+              }
+
+              // Extract street - look for вул. or пров. or use last available line before number
+              for (let i = nameParts.length - 2; i >= 0; i--) {
+                if (/^вул\.|^пров\./i.test(nameParts[i])) {
+                  street = nameParts[i].replace(/^(вул\.|пров\.)/i, '').trim();
+                  break;
+                }
+              }
+              // If no street found, use second-to-last line as street (for масив/ділянка without вул.)
+              if (!street && nameParts.length >= 2) {
+                street = nameParts[nameParts.length - 2].replace(/^(с\.|м\.|ж\/?масив|масив)/i, '').trim();
+              }
+
+              // Extract district (line with "р-н")
+              for (const part of nameParts) {
+                if (part.includes('р-н')) {
+                  district = part.replace('р-н', '').trim();
+                  break;
+                }
+              }
+
+              // For rural areas, we may have no street - use city name as street identifier
+              if (!street && city) {
+                street = city;
+              }
+
+              if (!houseNumber) continue;
 
               const streetId = normalizeStreetName(street);
               if (!streets[street]) {
