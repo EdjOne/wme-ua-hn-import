@@ -1466,8 +1466,7 @@
         currentStreetDiv.style.display = 'none';
         streetAnalysisDiv.style.display = 'none';
         statusDiv.innerHTML = `<b>Інструкція</b><br/>
-          1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b><br/>
-          Зелений = обрана вулиця • Помаранчевий = інші вулиці • Червоний = можлива помилка • Напівпрозорий = вже в WME`;
+          1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>`;
       }
 
       btnClear.addEventListener('click', clearLayer);
@@ -1715,13 +1714,11 @@
               LS.setLayerVisible(true);
 
               loading.style.display = 'none';
-              const conflictCount = features.filter(f => f.conflict).length;
               const processedCount = features.filter(f => f.processed).length;
               statusDiv.innerHTML = `Завантажено ${features.length} адрес.<br/>` +
                 `<b>Клікніть на номер на карті, щоб додати!</b><br/>` +
-                `Зелений = обрана вулиця • Помаранчевий = інші • Червоний = можлива помилка<br/>` +
                 `<span style="font-size:11px;color:#666;">` +
-                `${processedCount} вже в WME ${conflictCount > 0 ? `• ${conflictCount} збігів` : ''}` +
+                `${processedCount} вже в WME` +
                 `</span>`;
               resolve();
             })
