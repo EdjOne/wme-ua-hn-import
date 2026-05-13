@@ -1223,7 +1223,7 @@
         return;
       }
 
-      const houseNumber = feature.number;
+      const houseNumber = normalizeHouseNumber(feature.number);
       const featureLon = feature.lon;
       const featureLat = feature.lat;
 
@@ -1680,11 +1680,12 @@
 // TODO: Filter by city using coordinates (nearest city lookup via kadastrova-karta API)
 
                 const entry = selectionHNMap.get(item.street);
-                const processed = entry?.set.has(item.number) === true;
-                const conflict = !processed && hasConflict(item.number, item.lon, item.lat, entry);
+                const normalizedNum = normalizeHouseNumber(item.number);
+                const processed = entry?.set.has(normalizedNum) === true;
+                const conflict = !processed && hasConflict(normalizedNum, item.lon, item.lat, entry);
 
                 features.push({
-                  number: item.number,
+                  number: normalizedNum,
                   street: item.street,
                   processed,
                   conflict,
