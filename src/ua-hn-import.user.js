@@ -1770,8 +1770,13 @@
 
                 // Filter by city if we have one selected
                 if (city && item.city) {
-                  const normalizedCity = city.toLowerCase().replace('м.', '').trim();
-                  const normalizedItemCity = (item.city || '').toLowerCase().replace('м.', '').trim();
+                  const normalizeCity = (c) => c.toLowerCase()
+                    .replace(/^с\.?\s*/, '')
+                    .replace(/^м\.?\s*/, '')
+                    .replace(/\s+/, ' ')
+                    .trim();
+                  const normalizedCity = normalizeCity(city);
+                  const normalizedItemCity = normalizeCity(item.city);
                   if (normalizedItemCity !== normalizedCity) continue;
                 }
 
