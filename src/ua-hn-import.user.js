@@ -1709,9 +1709,11 @@
           loading.style.display = null;
 
           // Get city from selected segment
-          const cityId = selectedSegments[0]?.cityId;
+          const segment = selectedSegments[0];
+          const street = segment.primaryStreetId ? wmeSDK.DataModel.Streets.getById({ streetId: segment.primaryStreetId }) : null;
+          const cityId = street?.cityId;
           const city = cityId ? wmeSDK.DataModel.Cities.getById({ cityId })?.name : null;
-          console.log('[UA-HN] Selected city:', city);
+          console.log('[UA-HN] Selected city:', city, 'cityId:', cityId);
 
           // Compute bounding box of selected segments to get center
           let minLon = Infinity, maxLon = -Infinity;
