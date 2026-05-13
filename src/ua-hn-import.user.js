@@ -1253,6 +1253,12 @@
           throw new Error('Не знайдено сегментів поруч з цим маркером');
         }
         
+        // Check if street has a name (Residence cannot be created without street name)
+        const street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
+        if (!street || !street.name) {
+          throw new Error('Сегмент без назви вулиці — Residence не можна створити');
+        }
+        
         const streetId = nearestStreetId;
         console.log('[UA-HN] Nearest segment street ID:', streetId, 'distance:', minDist, 'px');
 
