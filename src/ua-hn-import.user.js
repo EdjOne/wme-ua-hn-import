@@ -1771,15 +1771,16 @@
                 // Filter by city if we have one selected
                 if (city && item.city) {
                   const normalizeCity = (c) => {
-                    let s = c.toLowerCase()
-                      .replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '');
-                    // Если есть "с. название" или "м. название" - оставляем только название
-                    const match = s.match(/\s+(с\.?|м\.?)\s*(\w+)$/i);
-                    if (match) return match[2];
-                    // Иначе убираем суффиксы
-                    return s.replace(/\s+сільська\s+рада.*$/i, '')
-                      .replace(/\s+міська\s+рада.*$/i, '')
-                      .replace(/\s+районна\s+рада.*$/i, '')
+                    let s = c.toLowerCase();
+                    // Сначала ищем "с. название" или "м. название" в конце - извлекаем название
+                    const suffixMatch = s.match(/\s+(с\.?|м\.?)\s*(\w+)$/i);
+                    if (suffixMatch) return suffixMatch[2];
+                    // Убираем префиксы
+                    s = s.replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '');
+                    // Убираем суффиксы (рада, область и т.д.)
+                    return s.replace(/\s+сільська\s+рада$/i, '')
+                      .replace(/\s+міська\s+рада$/i, '')
+                      .replace(/\s+районна\s+рада$/i, '')
                       .replace(/\s+область$/i, '').replace(/\s+громади?$/i, '')
                       .replace(/\s+о\.?о\.?$/i, '').trim();
                   };
