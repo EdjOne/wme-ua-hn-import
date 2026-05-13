@@ -661,6 +661,7 @@
               if (isNaN(lat) || isNaN(lon)) continue;
 
               const nameParts = item.name.trim().split('\n').map(p => p.trim()).filter(p => p);
+              console.log('[UA-HN] nameParts:', nameParts, 'raw name:', item.name);
               const city = (nameParts[0] || '').replace('м.', '').trim();
               const street = (nameParts[2] || '').replace(/^(вул\.|пров\.)/, '').trim();
               const houseNumber = nameParts[3] || '';
