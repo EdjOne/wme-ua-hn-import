@@ -654,9 +654,11 @@
             const streets = {};
 
             for (const item of polygons) {
+              if (!item.center || typeof item.center !== 'string') continue;
               const center = item.center.split(';');
               const lat = parseFloat(center[0]);
               const lon = parseFloat(center[1]);
+              if (isNaN(lat) || isNaN(lon)) continue;
 
               const nameParts = item.name.trim().split('\n').map(p => p.trim()).filter(p => p);
               const city = (nameParts[0] || '').replace('м.', '').trim();
@@ -1143,8 +1145,12 @@
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
 
     function onFeatureClick(feature) {
-      console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number });
+      console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number, lat: feature.lat, lon: feature.lon });
       if (feature.processed) return;
+      if (!feature.lat || !feature.lon || isNaN(feature.lat) || isNaN(feature.lon)) {
+        console.warn('[UA-HN] Invalid coordinates for feature:', feature);
+        return;
+      }
 
       const houseNumber = feature.number;
       const featureLon = feature.lon;
