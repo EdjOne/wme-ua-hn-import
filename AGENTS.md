@@ -5,7 +5,7 @@
 
 ## 📋 Описание
 
-Адаптация Tampermonkey userscript'а **WME Quick HN Importer** (Словения) для Waze Map Editor под украинские стандарты адресации.
+Адаптация Tampermonkey userscript'а **WME Quick RPP Importer** (Словения) для Waze Map Editor под украинские стандарты адресации.
 
 ## 🚀 Новый сервис: WME Street Highlighter
 

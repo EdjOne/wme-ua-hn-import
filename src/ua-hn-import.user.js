@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         WME Quick HN Importer - Ukraine
+// @name         WME Quick RPP Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
 // @version      1.7.2
-// @description  Швидке додавання Residence точок (Україна) через клікабельні точки на карті
+// @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
 // @updateURL    https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -1342,7 +1342,7 @@
         <div id="qhnua-pane" style="padding:10px;">
           <h2 style="margin-top:0;">Швидкий імпорт <span style="background:linear-gradient(to bottom,#005BBB 0 50%,#FFD500 50% 100%);background-size:16px 16px;height:16px;width:16px;display:inline-block;vertical-align:middle;margin-left:4px;border:1px solid #ccc;"></span></h2>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px 0;">
-            <button id="hn-load" class="wz-button"><span id="hn-load-label">Завантажити вулицю</span> <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+L</kbd></button>
+            <button id="hn-load" class="wz-button"><span id="hn-load-label">Завантажити</span> <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+L</kbd></button>
             <button id="hn-clear" class="wz-button wz-button--secondary">Очистити <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+K</kbd></button>
           </div>
           <div id="hn-current-street" style="margin:8px 0;padding:8px;background:#f0f0f0;border-radius:4px;font-size:13px;display:none;">
@@ -1361,7 +1361,7 @@
           </div>
           <div id="hn-status" style="margin-top:10px;font-size:12px;color:#666;line-height:1.4;">
             <b>Інструкція</b><br/>
-            1) Вибрати сегмент • 2) Натиснути "Завантажити вулицю" • 3) <b>Клікнути номер на карті для додавання</b><br/>
+            1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b><br/>
             Зелений = обрана вулиця • Помаранчевий = інші вулиці • Червоний = можлива помилка • Напівпрозорий = вже в WME
           </div>
         </div>
@@ -1451,7 +1451,7 @@
         }
 
         btnLoad.disabled = false;
-        btnLoadLabel.textContent = 'Завантажити вулицю';
+        btnLoadLabel.textContent = 'Завантажити';
         isLoading = false;
       }
 
@@ -1474,7 +1474,7 @@
         currentStreetDiv.style.display = 'none';
         streetAnalysisDiv.style.display = 'none';
         statusDiv.innerHTML = `<b>Інструкція</b><br/>
-          1) Вибрати сегмент • 2) Натиснути "Завантажити вулицю" • 3) <b>Клікнути номер на карті для додавання</b><br/>
+          1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b><br/>
           Зелений = обрана вулиця • Помаранчевий = інші вулиці • Червоний = можлива помилка • Напівпрозорий = вже в WME`;
       }
 
@@ -1739,7 +1739,7 @@
         try { wmeSDK.Shortcuts.deleteShortcut({ shortcutId: id }); } catch (_) {}
       });
       [
-        { shortcutId: 'qhnua-load',  shortcutKeys: 'AS+l', description: 'UA-HN: Завантажити вибрану вулицю', callback: loadSelectedStreet },
+        { shortcutId: 'qhnua-load',  shortcutKeys: 'AS+l', description: 'UA-HN: Завантажити', callback: loadSelectedStreet },
         { shortcutId: 'qhnua-clear', shortcutKeys: 'AS+k', description: 'UA-HN: Очистити',                callback: clearLayer }
       ].forEach(spec => {
         try { wmeSDK.Shortcuts.createShortcut(spec); }
