@@ -1775,10 +1775,10 @@
                   const normalizeCity = (c) => {
                     let s = c.toLowerCase();
                     // Сначала ищем "с. название" или "м. название" в конце - извлекаем название
-                    const suffixMatch = s.match(/\s+(с\.?|м\.?)\s*(\w+)$/i);
-                    if (suffixMatch) return suffixMatch[2];
-                    // Убираем префиксы
-                    s = s.replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '');
+                    const suffixMatch = s.match(/\s+с\.?\s*(\w+)$/i) || s.match(/\s+м\.?\s*(\w+)$/i);
+                    if (suffixMatch) return suffixMatch[1];
+                    // Убираем префиксы "с." и "м." (только с точкой или пробелом)
+                    s = s.replace(/^с\.\s*/, '').replace(/^м\.\s*/, '');
                     // Убираем суффиксы (рада, область и т.д.)
                     return s.replace(/\s+сільська\s+рада$/i, '')
                       .replace(/\s+міська\s+рада$/i, '')
