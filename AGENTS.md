@@ -1,11 +1,10 @@
-# house-number (UA-HN)
+# house-number (UA-RPP)
 
-**Владелец:** Mr. Edj  
-**Создан:** 2026-05-02
+**Владелец:** Mr. Edj  **Создан:** 2026-05-02
 
 ## 📋 Описание
 
-Адаптация Tampermonkey userscript'а **WME Quick RPP Importer** (Словения) для Waze Map Editor под украинские стандарты адресации.
+WME Quick RPP Importer для Украины — импорт номеров домов через Venues API.
 
 ## 🚀 Новый сервис: WME Street Highlighter
 
@@ -46,7 +45,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.5.0 (Residence via Venues API)
+│   └── ua-hn-import.user.js  # v1.7.3 (без navpoints, упрощённый UI)
 └── data/
     └── test-bbox.json
 ```
