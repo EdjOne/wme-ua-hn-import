@@ -1177,9 +1177,9 @@
           return Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
         }
         
-        // Convert feature coords to pixel coords
-        const featurePx = wmeSDK.Map.getMapPixelFromLonLat({ lon: featureLon, lat: featureLat });
-        
+// Convert feature coords to pixel coords
+        const featurePx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: featureLon, lat: featureLat } });
+
         for (const seg of segments) {
           const coords = seg.geometry?.coordinates;
           if (!Array.isArray(coords) || coords.length < 2) continue;
@@ -1190,8 +1190,8 @@
             const p2 = coords[i + 1];
             if (!p1 || !p2) continue;
             
-            const p1Px = wmeSDK.Map.getMapPixelFromLonLat({ lon: p1[0], lat: p1[1] });
-            const p2Px = wmeSDK.Map.getMapPixelFromLonLat({ lon: p2[0], lat: p2[1] });
+            const p1Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p1[0], lat: p1[1] } });
+            const p2Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p2[0], lat: p2[1] } });
             
             const dist = pointToSegmentDist(featurePx.x, featurePx.y, p1Px.x, p1Px.y, p2Px.x, p2Px.y);
             if (dist < minDist && dist < 50) { // 50 pixels threshold
