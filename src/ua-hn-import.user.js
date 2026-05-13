@@ -1294,6 +1294,8 @@
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="qhnua-missing">Тільки відсутні</wz-checkbox>
+            <wz-checkbox id="qhnua-selected-only">Тільки обрані</wz-checkbox>
+            <wz-checkbox id="qhnua-navpoints">Точки навігації</wz-checkbox>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
@@ -1322,7 +1324,7 @@
       streetAnalysisDiv = tabPane.querySelector('#hn-street-analysis');
 
       const isChecked  = (el) => el?.hasAttribute('checked');
-      const setChecked = (el, v) => v ? el.setAttribute('checked', '') : el.removeAttribute('checked');
+      const setChecked = (el, v) => { if (el) v ? el.setAttribute('checked', '') : el.removeAttribute('checked'); };
 
       bufferEl.value = String(LS.getBuffer());
       if (LS.getLayerVisible()) {
