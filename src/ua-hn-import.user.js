@@ -1147,7 +1147,7 @@
     function onFeatureClick(feature) {
       console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number, lat: feature.lat, lon: feature.lon });
       if (feature.processed) return;
-      if (!feature.lat || !feature.lon || isNaN(feature.lat) || isNaN(feature.lon)) {
+      if (typeof feature.lat !== 'number' || typeof feature.lon !== 'number' || isNaN(feature.lat) || isNaN(feature.lon)) {
         console.warn('[UA-HN] Invalid coordinates for feature:', feature);
         return;
       }
@@ -1434,6 +1434,8 @@
         const onlyMissing  = chkMissing?.hasAttribute('checked');
         const visible = lastFeatures.filter(feat => {
           if (onlyMissing && feat.processed) return false;
+          // Фильтр невалидных координат
+          if (typeof feat.lat !== 'number' || typeof feat.lon !== 'number' || isNaN(feat.lat) || isNaN(feat.lon)) return false;
           return true;
         });
         if (lastSdkFeatureIds.length) {
