@@ -1770,30 +1770,7 @@
               for (const item of apiFeatures) {
                 if (!item.lat || !item.lon) continue;
 
-                // Filter by city if we have one selected
-                if (city && item.city) {
-                  const normalizeCity = (c) => {
-                    let s = c.toLowerCase();
-                    // Сначала ищем "с. название" или "м. название" в конце - извлекаем название
-                    const suffixMatch = s.match(/\s+с\.?\s*(\w+)$/i) || s.match(/\s+м\.?\s*(\w+)$/i);
-                    if (suffixMatch) return suffixMatch[1];
-                    // Убираем префиксы "с." и "м." (только с точкой или пробелом)
-                    s = s.replace(/^с\.\s*/, '').replace(/^м\.\s*/, '');
-                    // Убираем суффиксы (рада, область и т.д.)
-                    return s.replace(/\s+сільська\s+рада$/i, '')
-                      .replace(/\s+міська\s+рада$/i, '')
-                      .replace(/\s+районна\s+рада$/i, '')
-                      .replace(/\s+область$/i, '').replace(/\s+громади?$/i, '')
-                      .replace(/\s+о\.?о\.?$/i, '').trim();
-                  };
-                  const normalizedCity = normalizeCity(city);
-                  const normalizedItemCity = normalizeCity(item.city);
-                  console.log('[UA-HN] City compare:', city, '->', normalizedCity, 'vs', item.city, '->', normalizedItemCity);
-                  const match = normalizedItemCity === normalizedCity ||
-                    normalizedItemCity.includes(normalizedCity) ||
-                    normalizedCity.includes(normalizedItemCity);
-                  if (!match) continue;
-                }
+// TODO: Filter by city using coordinates (nearest city lookup via kadastrova-karta API)
 
                 const entry = selectionHNMap.get(item.street);
                 const processed = entry?.set.has(item.number) === true;
