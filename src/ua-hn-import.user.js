@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick RPP Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.7.2
+// @version      1.7.5
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -549,6 +549,30 @@
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
+  // Normalize house number: fix fractions and letter case
+  // - Fix "7/ 1" → "7/1" (remove space before /)
+  // - Letter numbers: uppercase Cyrillic except І, З, О → lowercase і, з, о
+  // - No space between digit and letter: "2А" not "2 А"
+  function normalizeHouseNumber(num) {
+    if (!num) return num;
+    let normalized = String(num).trim();
+    
+    // Fix fractions: "7/ 1" → "7/1" (space after / or before digit)
+    normalized = normalized.replace(/\s*\/\s*/g, '/');
+    
+    // Ensure no space between digit and letter: "2 А" → "2А"
+    normalized = normalized.replace(/(\d)\s+([А-Яа-яІіЇїЄєҐґ])/g, '$1$2');
+    
+    // Uppercase Cyrillic letters, but І, З, О → lowercase і, з, о
+    // Only for letter suffix at the end (e.g., "2А" → "2А", "2з" stays "2з")
+    normalized = normalized.replace(/([А-ЯІЇЄҐ])$/g, (match) => {
+      const lowerMap = { 'И': 'і', 'З': 'з', 'О': 'о' };
+      return lowerMap[match] || match;
+    });
+    
+    return normalized;
+  }
+
   // Calculate similarity between two strings (0-1)
   function calculateSimilarity(str1, str2) {
     const s1 = normalizeForComparison(str1);
@@ -682,9 +706,9 @@
               if (lastLine.includes('б/н') || lastLine.includes('без номера')) {
                 continue;
               }
-              const numMatch = lastLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+[а-яА-Я\\/]?)/i);
+              const numMatch = lastLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+[а-яА-Я\/]?)/i);
               if (numMatch) {
-                houseNumber = numMatch[1];
+                houseNumber = normalizeHouseNumber(numMatch[1]);
               }
 
               // Extract street - look for вул. or пров. or use last available line before number

@@ -45,7 +45,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.7.4 (RPP, защита от создания без названия улицы)
+│   └── ua-hn-import.user.js  # v1.7.5 (нормализация номеров: дроби, буквы кирилицей)
 
 ## 📊 UA-RPP Статус
 
