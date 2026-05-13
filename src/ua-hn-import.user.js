@@ -662,9 +662,46 @@
 
               const nameParts = item.name.trim().split('\n').map(p => p.trim()).filter(p => p);
               console.log('[UA-HN] nameParts:', nameParts, 'raw name:', item.name);
-              const city = (nameParts[0] || '').replace('м.', '').trim();
-              const street = (nameParts[2] || '').replace(/^(вул\.|пров\.)/, '').trim();
-              const houseNumber = nameParts[3] || '';
+
+              // Robust parsing - handle different formats:
+              // Format 1: "с. Майори\nОдеський р-н\nвул. Свободи\n12" (4 lines)
+              // Format 2: "с. Майори\nвул. Свободи 12" (2-3 lines, number at end)
+              let city = '';
+              let street = '';
+              let houseNumber = '';
+              let district = '';
+
+              if (nameParts.length >= 4) {
+                // Standard format: city, district, street, number
+                city = nameParts[0].replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '').trim();
+                district = nameParts[1].replace('р-н', '').trim();
+                street = nameParts[2].replace(/^(вул\.|пров\.)/, '').trim();
+                houseNumber = nameParts[3];
+              } else if (nameParts.length === 3) {
+                city = nameParts[0].replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '').trim();
+                // Could be district or street - check for "р-н"
+                if (nameParts[1].includes('р-н')) {
+                  district = nameParts[1].replace('р-н', '').trim();
+                  street = nameParts[2].replace(/^(вул\.|пров\.)/, '').trim();
+                  // Extract number from street if present
+                  const numMatch = street.match(/\s+(\d+[а-яА-Я]?)$/);
+                  if (numMatch) { houseNumber = numMatch[1]; street = street.replace(/\s+\d+[а-яА-Я]?$/, ''); }
+                } else {
+                  street = nameParts[1].replace(/^(вул\.|пров\.)/, '').trim();
+                  houseNumber = nameParts[2];
+                }
+              } else if (nameParts.length === 2) {
+                city = nameParts[0].replace(/^с\.?\s*/, '').replace(/^м\.?\s*/, '').trim();
+                // Street and number may be combined
+                const lastPart = nameParts[1];
+                const numMatch = lastPart.match(/\s+(\d+[а-яА-Я]?)$/);
+                if (numMatch) {
+                  houseNumber = numMatch[1];
+                  street = lastPart.substring(0, lastPart.lastIndexOf(numMatch[0])).replace(/^(вул\.|пров\.)/, '').trim();
+                } else {
+                  street = lastPart.replace(/^(вул\.|пров\.)/, '').trim();
+                }
+              }
 
               if (!houseNumber || !street) continue;
 
@@ -682,7 +719,7 @@
                 lat: lat,
                 lon: lon,
                 city: city,
-                district: (nameParts[1] || '').replace('р-н', '').trim()
+                district: district
               });
             }
 
