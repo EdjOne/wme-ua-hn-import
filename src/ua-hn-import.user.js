@@ -566,7 +566,7 @@
     // Uppercase Cyrillic letters, but І, З, О → lowercase і, з, о
     // Only for letter suffix at the end (e.g., "2А" → "2А", "2з" stays "2з")
     normalized = normalized.replace(/([А-ЯІЇЄҐ])$/g, (match) => {
-      const lowerMap = { 'И': 'і', 'З': 'з', 'О': 'о' };
+      const lowerMap = { 'І': 'і', 'З': 'з', 'О': 'о' };
       return lowerMap[match] || match;
     });
     
