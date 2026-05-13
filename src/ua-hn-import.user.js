@@ -1253,10 +1253,10 @@
           throw new Error('Не знайдено сегментів поруч з цим маркером');
         }
         
-        // Check if street has a name (Residence cannot be created without street name)
+        // Check if street has a name (RPP cannot be created without street name)
         const street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
         if (!street || !street.name) {
-          throw new Error('Сегмент без назви вулиці — Residence не можна створити');
+          throw new Error('Сегмент без назви вулиці — RPP не можна створити');
         }
         
         const streetId = nearestStreetId;
@@ -1311,18 +1311,18 @@
           }
         });
 
-        console.log('[UA-HN] Residence created:', { venueId, streetId, houseNumber });
+        console.log('[UA-HN] RPP created:', { venueId, streetId, houseNumber });
 
         feature.userAdded = true;
         feature.processed = true;
         feature.conflict = false;
         applyFeatureFilter();
 
-        console.log('[UA-HN] Додано Residence', houseNumber);
-        toast(`Додано Residence ${houseNumber} 🏠`, 'success');
+        console.log('[UA-HN] Додано RPP', houseNumber);
+        toast(`Додано RPP ${houseNumber} 🏠`, 'success');
       } catch (err) {
-        console.error('[UA-HN] Помилка додавання Residence:', err);
-        toast(err.message || 'Помилка додавання Residence', 'error');
+        console.error('[UA-HN] Помилка додавання RPP:', err);
+        toast(err.message || 'Помилка додавання RPP', 'error');
       }
     }
 
