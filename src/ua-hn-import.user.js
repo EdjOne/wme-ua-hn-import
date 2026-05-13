@@ -1332,6 +1332,7 @@
 
       const isChecked  = (el) => el?.hasAttribute('checked');
       const setChecked = (el, v) => { if (el) v ? el.setAttribute('checked', '') : el.removeAttribute('checked'); };
+      const safeSetChecked = (id, v) => { const el = tabPane.querySelector(id); if (el) v ? el.setAttribute('checked', '') : el.removeAttribute('checked'); };
 
       bufferEl.value = String(LS.getBuffer());
       if (LS.getLayerVisible()) {
@@ -1339,10 +1340,8 @@
         userWantsLayerVisible = true;
         updateLayerVisibility();
       }
-      if (LS.getSelectedOnly()) {
-        setChecked(chkSelectedOnly, true);
-      }
-      setChecked(chkNavPoints, LS.getNavPoints());
+      setChecked(chkSelectedOnly, LS.getSelectedOnly() ? true : false);
+      if (chkNavPoints) chkNavPoints.checked = LS.getNavPoints();
 
       bufferEl.addEventListener('change', () => {
         const val = Number(bufferEl.value);
@@ -1361,12 +1360,12 @@
         updateLayerVisibility();
       });
 
-      chkMissing.addEventListener('click', () => {
+      chkMissing?.addEventListener('click', () => {
         setChecked(chkMissing, !isChecked(chkMissing));
         applyFeatureFilter();
       });
 
-      chkSelectedOnly.addEventListener('click', () => {
+      chkSelectedOnly?.addEventListener('click', () => {
         const newState = !isChecked(chkSelectedOnly);
         setChecked(chkSelectedOnly, newState);
         LS.setSelectedOnly(newState);
