@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick RPP Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version    1.7.12
+// @version    1.7.13
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1492,6 +1492,8 @@
           wmeSDK.Map.removeFeaturesFromLayer({ layerName: SDK_LAYER_NAME, featureIds: lastSdkFeatureIds });
           lastSdkFeatureIds = [];
         }
+        // Clear deduplication cache so reloading shows all addresses
+        window.__uaRppSeenFeatures?.clear();
         userWantsLayerVisible = false;
         wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
         setChecked(chkVis, false);
@@ -1695,10 +1697,9 @@
                 const processed = entry?.set.has(normalizedNum) === true;
                 const conflict = !processed && hasConflict(normalizedNum, item.lon, item.lat, entry);
 
-                // Create unique key: number + street ID + rounded coordinates (to filter duplicates at same location)
-                const roundedLon = Math.round(item.lon * 10000) / 10000;
-                const roundedLat = Math.round(item.lat * 10000) / 10000;
-                const featureKey = `${normalizedNum}|${item.street}|${roundedLon}|${roundedLat}`;
+                // Create unique key: number + street only (same address cannot appear twice on one street)
+                // Deduplication persists across reloads until Clear is clicked
+                const featureKey = `${normalizedNum}|${item.street}`;
                 if (seenFeatures.has(featureKey)) continue;
                 seenFeatures.add(featureKey);
 
