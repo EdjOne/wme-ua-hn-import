@@ -706,11 +706,13 @@
 
               // Extract house number from last line (ділянка N, масив N, діл. N, буд. N, кв. N etc.)
               const lastLine = nameParts[nameParts.length - 1] || '';
+// Normalize whitespace around fractions: "2/ 17" → "2/17"
+              const normalizedLine = lastLine.replace(/\s*\/\s*/g, '/');
               // Skip "б/н" (без номера), "будинок", etc. - require actual number
               if (lastLine.includes('б/н') || lastLine.includes('без номера')) {
                 continue;
               }
-              const numMatch = lastLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+(?:\/\d+)?[а-яА-Я]?)/i);
+              const numMatch = normalizedLine.match(/(?:ділянка|масив|діл\.|буд\.|кв\.|№)?\s*(\d+(?:\/\d+)?[а-яА-Я]?)/i);
               if (numMatch) {
                 houseNumber = normalizeHouseNumber(numMatch[1]);
               }
