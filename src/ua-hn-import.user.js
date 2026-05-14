@@ -5,7 +5,7 @@
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
-// @updateURL    https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
+// @updateURL    https://github.com/EdjOne/wme-ua-hn-import/raw/main/src/ua-hn-import.user.js
 // @icon         https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/icon48.png
 // @icon64       https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/icon64.png
 // @match        https://www.waze.com/editor*
