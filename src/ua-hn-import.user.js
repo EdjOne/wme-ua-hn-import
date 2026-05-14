@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         WME Quick RPP Importer - Ukraine
-// @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version    1.7.15
+// @name         UA-RPP (Ukrainian Residence Point Places)
+// @namespace    https://github.com/EdjOne/house-number
+// @version      1.7.16
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1414,9 +1414,10 @@ streets = {};
 
           Promise.all([
             fetchAddressesWaze(centerLat, centerLon, radius),
-            getVisibleRPPsByStreet()
+            getVisibleRPPsByStreet(),
+            getVenuesInExtentByHouseNumber()
           ])
-            .then(([apiResult, selectionRPPMap]) => {
+            .then(([apiResult, selectionRPPMap, venueMap]) => {
               // Bail out if user clicked Clear (or started a newer load) while the fetch was in flight
               if (loadId !== currentLoadId) {
                 loading.style.display = 'none';
@@ -1442,7 +1443,18 @@ streets = {};
 
                 const entry = selectionRPPMap.get(item.street);
                 const normalizedNum = normalizeHouseNumber(item.number);
-                const processed = entry?.set.has(normalizedNum) === true;
+                // Check if already processed (House Number or Venue with same number nearby)
+                let processed = entry?.set.has(normalizedNum) === true;
+                // Also check Venues/RPPs
+                if (!processed && venueMap.has(normalizedNum)) {
+                  for (const venueEntry of venueMap.get(normalizedNum).items) {
+                    const dx = item.lon - venueEntry.x, dy = item.lat - venueEntry.y;
+                    if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
+                      processed = true;
+                      break;
+                    }
+                  }
+                }
                 const conflict = !processed && hasConflict(normalizedNum, item.lon, item.lat, entry);
 
                 // Create unique key: number + street only (same address cannot appear twice on one street)
