@@ -577,60 +577,6 @@
     return normalized;
   }
 
-  // Calculate similarity between two strings (0-1)
-  function calculateSimilarity(str1, str2) {
-    const s1 = normalizeForComparison(str1);
-    const s2 = normalizeForComparison(str2);
-
-    // Exact match after normalization
-    if (s1 === s2) return 1.0;
-
-    // Match without diacritics
-    if (removeDiacritics(s1) === removeDiacritics(s2)) return 0.95;
-
-    // Word permutation check (e.g., "флотилії дунайської" vs "дунайської флотилії")
-    const words1 = s1.split(/\s+/).filter(w => w.length > 2);
-    const words2 = s2.split(/\s+/).filter(w => w.length > 2);
-    if (words1.length === words2.length && words1.length > 1) {
-      const sorted1 = [...words1].sort().join(' ');
-      const sorted2 = [...words2].sort().join(' ');
-      if (sorted1 === sorted2) return 0.98;
-    }
-
-    // Substring check (e.g., "Весела" vs "вул. Весела")
-    if (s1.includes(s2) || s2.includes(s1)) return 0.96;
-
-    // Levenshtein distance based similarity
-    const distance = levenshteinDistance(s1, s2);
-    const maxLen = Math.max(s1.length, s2.length);
-    const similarity = 1 - (distance / maxLen);
-
-    return similarity;
-  }
-
-  // Levenshtein distance implementation
-  function levenshteinDistance(str1, str2) {
-    const m = str1.length;
-    const n = str2.length;
-    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
-
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
-
-    for (let i = 1; i <= m; i++) {
-      for (let j = 1; j <= n; j++) {
-        const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,
-          dp[i][j - 1] + 1,
-          dp[i - 1][j - 1] + cost
-        );
-      }
-    }
-
-    return dp[m][n];
-  }
-
   function getRPGeometry(hn) {
     if (!hn?.geometry?.coordinates) return null;
     return { x: hn.geometry.coordinates[0], y: hn.geometry.coordinates[1] };
@@ -778,73 +724,6 @@
     });
   }
 
-  // Copy text to clipboard
-  function copyToClipboard(text) {
-    if (typeof GM_setClipboard === 'function') {
-      GM_setClipboard(text, 'text');
-      toast(`Скопійовано: "${text}"`, 'success');
-    } else {
-      navigator.clipboard.writeText(text).then(() => {
-        toast(`Скопійовано: "${text}"`, 'success');
-      }).catch(() => {
-        toast('Не вдалося скопіювати', 'error');
-      });
-    }
-  }
-
-  // Update selected segment's street name via WME SDK
-  function updateSegmentStreetName(newStreetName, onSuccess) {
-    const selectedSegments = getSelectedSegments();
-    if (selectedSegments.length === 0) {
-      toast('Не вибрано сегмент', 'warning');
-      return;
-    }
-
-    const segment = selectedSegments[0];
-    const segmentId = segment.id;
-
-    const currentStreetId = segment.primaryStreetId;
-    const currentStreet = currentStreetId ? wmeSDK.DataModel.Streets.getById({ streetId: currentStreetId }) : null;
-    const cityId = currentStreet?.cityId;
-
-    if (!cityId) {
-      toast('Сегмент не має призначеного міста', 'warning');
-      return;
-    }
-
-    try {
-      let street = wmeSDK.DataModel.Streets.getStreet({
-        cityId: cityId,
-        streetName: newStreetName
-      });
-
-      if (!street) {
-        console.debug('[UA-RPP] Вулицю не знайдено, створюємо нову:', newStreetName);
-        street = wmeSDK.DataModel.Streets.addStreet({
-          streetName: newStreetName,
-          cityId: cityId
-        });
-      }
-
-      console.debug('[UA-RPP] Знайдено вулицю:', street);
-
-      wmeSDK.DataModel.Segments.updateAddress({
-        segmentId: segmentId,
-        primaryStreetId: street.id
-      });
-
-      console.debug('[UA-RPP] Оновлено сегмент', segmentId, 'на вулицю ID:', street.id);
-      toast(`Оновлено назву вулиці на "${newStreetName}"`, 'success');
-
-      if (typeof onSuccess === 'function') {
-        onSuccess();
-      }
-    } catch (err) {
-      console.error('[UA-RPP] Помилка оновлення назви вулиці:', err);
-      toast('Помилка оновлення назви вулиці', 'error');
-    }
-  }
-
   function init() {
     let currentStreetId = null;
     let streetNames = {};
@@ -856,13 +735,11 @@
     let userWantsLayerVisible = false;
     let streetNameSpan = null;
     let currentStreetDiv = null;
-    let streetAnalysisDiv = null;
 
     let chkMissing = null;
     let chkSelectedOnly = null;
 
     let applyFeatureFilter = () => {};
-    let analyzeStreetMatches = () => {};
 
     try {
       I18n.translations[I18n.currentLocale()].layers.name['quick-rpp-ua-importer'] = 'Quick RPP Importer (UA)';
@@ -926,196 +803,6 @@
     wmeSDK.Events.on({ eventName: 'wme-map-move-end', eventHandler: updateLayerVisibility });
     wmeSDK.Events.on({ eventName: 'wme-selection-changed', eventHandler: onSelectionChanged });
 
-    // Get all WME street names from selection (primary + alternate)
-    function getWmeStreetNames() {
-      const selectedSegments = getSelectedSegments();
-      if (selectedSegments.length === 0) return [];
-
-      const names = [];
-      const seen = new Set();
-
-      selectedSegments.forEach(seg => {
-        // Primary
-        if (seg.primaryStreetId) {
-          const street = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
-          if (street?.name && !seen.has(street.name.toLowerCase())) {
-            names.push(street.name);
-            seen.add(street.name.toLowerCase());
-          }
-        }
-        // Alternate
-        (seg.alternateStreetIds || []).forEach(id => {
-          const street = wmeSDK.DataModel.Streets.getById({ streetId: id });
-          if (street?.name && !seen.has(street.name.toLowerCase())) {
-            names.push(street.name);
-            seen.add(street.name.toLowerCase());
-          }
-        });
-      });
-
-      return names;
-    }
-
-    // Analyze street name matches and update UI
-    analyzeStreetMatches = function() {
-      if (!streetAnalysisDiv) return;
-      if (!lastFeatures.length) {
-        streetAnalysisDiv.style.display = 'none';
-        return;
-      }
-
-      const wmeStreetNames = getWmeStreetNames();
-
-      // Count addresses per official street name
-      const streetCounts = {};
-      lastFeatures.forEach(f => {
-        const name = streetNames[f.street];
-        if (!name) return;
-        streetCounts[name] = (streetCounts[name] || 0) + 1;
-      });
-
-      // Sort by count descending
-      const sorted = Object.entries(streetCounts)
-        .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]));
-
-      if (sorted.length === 0) {
-        streetAnalysisDiv.style.display = 'none';
-        return;
-      }
-
-      // Check how many match any WME street (primary or alternate)
-      // Normalize all WME names for comparison
-      const normalizedWmeNames = wmeStreetNames.map(n => normalizeForComparison(n));
-      let matchCount = 0;
-      if (wmeStreetNames.length > 0) {
-        Object.entries(streetCounts).forEach(([name, count]) => {
-          const normalized = normalizeForComparison(name);
-          if (normalizedWmeNames.includes(normalized)) {
-            matchCount += count;
-          }
-        });
-      }
-      const hasMismatch = wmeStreetNames.length > 0 && matchCount === 0 && sorted.length > 0;
-
-      // Find fuzzy match if there's a mismatch
-      let suggestedMatch = null;
-      let suggestionSimilarity = 0;
-
-      if (hasMismatch && wmeStreetNames.length > 0) {
-        // Use first WME name for fuzzy matching
-        const primaryWmeName = wmeStreetNames[0];
-        for (const [name] of sorted) {
-          const similarity = calculateSimilarity(primaryWmeName, name);
-          if (similarity > 0.7 && similarity > suggestionSimilarity) {
-            suggestedMatch = name;
-            suggestionSimilarity = similarity;
-          }
-        }
-      }
-
-      // Build HTML
-      let html = '';
-
-      if (hasMismatch) {
-        html += `<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:8px;margin-bottom:8px;">`;
-        html += `<b style="color:#856404;">⚠️ Не знайдено співпадінь!</b><br/>`;
-        html += `<span style="font-size:11px;color:#856404;">Назва вулиці в WME не збігається з жодною офіційною назвою</span>`;
-        html += `</div>`;
-
-        if (suggestedMatch) {
-          const escapedSuggested = escapeHtml(suggestedMatch);
-          html += `<div style="background:#d4edda;border:1px solid #28a745;border-radius:4px;padding:8px;margin-bottom:8px;">`;
-          html += `<b style="color:#155724;">💡 Можливе співпадіння:</b><br/>`;
-          html += `<div style="margin:4px 0;font-size:12px;">`;
-          html += `<span style="color:#666;">WME:</span> <span style="color:#dc3545;text-decoration:line-through;">${escapeHtml(wmeStreetName)}</span><br/>`;
-          html += `<span style="color:#666;">База:</span> <b style="color:#155724;">${escapedSuggested}</b>`;
-          html += `</div>`;
-          html += `<div style="display:flex;gap:6px;margin-top:6px;">`;
-          html += `<button class="wz-button update-street-btn" data-street="${escapedSuggested}" style="font-size:11px;padding:2px 8px;">✓ Використати</button>`;
-          html += `<button class="copy-street-btn" data-street="${escapedSuggested}" style="font-size:11px;padding:2px 8px;background:#f8f8f8;border:1px solid #ccc;border-radius:3px;cursor:pointer;">📋 Копія</button>`;
-          html += `</div>`;
-          html += `</div>`;
-        }
-      }
-
-      html += `<div style="font-size:12px;margin-bottom:4px;"><b>Вулиці в районі:</b></div>`;
-      html += `<div style="max-height:150px;overflow-y:auto;border:1px solid #ddd;border-radius:4px;background:#fafafa;">`;
-
-      sorted.forEach(([name, _count], index) => {
-        const normalized = normalizeForComparison(name);
-        const isMatch = normalizedWmeNames.includes(normalized);
-        const isSuggestion = name === suggestedMatch;
-        const escapedName = escapeHtml(name);
-
-        let rowStyle = 'padding:4px 8px;font-size:11px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;';
-        if (isMatch) rowStyle += 'background:#d4edda;';
-        else if (isSuggestion) rowStyle += 'background:#fff3cd;';
-        else if (index % 2 === 0) rowStyle += 'background:#f8f8f8;';
-
-        html += `<div style="${rowStyle}">`;
-        html += `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapedName}">`;
-        if (isMatch) html += '✓ ';
-        if (isSuggestion) html += '→ ';
-        html += `${escapedName}</span>`;
-        html += `<span style="margin-left:8px;white-space:nowrap;display:flex;align-items:center;gap:4px;">`;
-        const btnStyle = isMatch
-          ? 'padding:1px 4px;font-size:10px;cursor:default;border:1px solid #ccc;border-radius:2px;background:#e9e9e9;color:#999;'
-          : 'padding:1px 4px;font-size:10px;cursor:pointer;border:1px solid #28a745;border-radius:2px;background:#d4edda;color:#155724;';
-        html += `<button class="update-street-btn" data-street="${escapedName}" style="${btnStyle}" title="${isMatch ? 'Вже встановлено' : 'Використати'}">${isMatch ? '✓' : '→'}</button>`;
-        html += `<button class="copy-street-btn" data-street="${escapedName}" style="padding:1px 4px;font-size:10px;cursor:pointer;border:1px solid #ccc;border-radius:2px;background:#fff;" title="Копіювати">📋</button>`;
-        html += `</span>`;
-        html += `</div>`;
-      });
-
-      html += `</div>`;
-      html += `<div style="font-size:10px;color:#888;margin-top:4px;">→ = застосувати назву • 📋 = копіювати</div>`;
-
-      streetAnalysisDiv.innerHTML = html;
-      streetAnalysisDiv.style.display = 'block';
-
-      // Add click handlers for copy buttons
-      streetAnalysisDiv.querySelectorAll('.copy-street-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const streetName = btn.getAttribute('data-street');
-          copyToClipboard(streetName);
-        });
-      });
-
-      // Add click handlers for update buttons
-      streetAnalysisDiv.querySelectorAll('.update-street-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const streetName = btn.getAttribute('data-street');
-
-          const currentWmeStreets = getWmeStreetNames();
-          if (currentWmeStreets.includes(streetName)) {
-            toast('Назва вулиці вже встановлена', 'info');
-            return;
-          }
-
-          updateSegmentStreetName(streetName, () => {
-            const newStreetId = streets[streetName];
-            if (newStreetId) {
-              currentStreetId = newStreetId;
-
-              if (streetNameSpan && currentStreetDiv) {
-                streetNameSpan.textContent = streetName;
-                currentStreetDiv.style.display = 'block';
-              }
-            }
-
-            setTimeout(() => {
-              analyzeStreetMatches();
-              applyFeatureFilter();
-            }, 100);
-          });
-        });
-      });
-    };
-
     function onSelectionChanged() {
       if (!lastFeatures.length) return;
 
@@ -1141,7 +828,6 @@
           currentStreetDiv.style.display = 'none';
         }
         applyFeatureFilter();
-        analyzeStreetMatches();
         return;
       }
 
@@ -1172,7 +858,6 @@
           currentStreetDiv.style.display = 'none';
         }
         applyFeatureFilter();
-        analyzeStreetMatches();
         return;
       }
 
@@ -1184,7 +869,6 @@
       }
 
       applyFeatureFilter();
-      analyzeStreetMatches();
     }
 
     function handleMapClick(evt) {
@@ -1381,7 +1065,6 @@
           <div id="hn-current-street" style="margin:8px 0;padding:8px;background:#f0f0f0;border-radius:4px;font-size:13px;display:none;">
             <b>Вибрана вулиця WME:</b> <span id="hn-street-name" style="color:#2a7;font-weight:bold;">—</span>
           </div>
-          <div id="hn-street-analysis" style="margin:8px 0;display:none;"></div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="qhnua-missing">Тільки відсутні</wz-checkbox>
@@ -1409,7 +1092,6 @@
 
       currentStreetDiv = tabPane.querySelector('#hn-current-street');
       streetNameSpan = tabPane.querySelector('#hn-street-name');
-      streetAnalysisDiv = tabPane.querySelector('#hn-street-analysis');
 
       const isChecked  = (el) => el?.hasAttribute('checked');
       const setChecked = (el, v) => { if (el) v ? el.setAttribute('checked', '') : el.removeAttribute('checked'); };
@@ -1467,7 +1149,6 @@
         streetNames = {};
         currentStreetId = null;
         lastFeatures = [];
-        streetAnalysisDiv.style.display = 'none';
 
         await updateLayer(statusDiv, myLoadId).catch(err => console.warn('UA-RPP updateLayer:', err));
 
@@ -1498,12 +1179,11 @@
         wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
         setChecked(chkVis, false);
         LS.setLayerVisible(false);
-        streets = {};
+streets = {};
         streetNames = {};
         currentStreetId = null;
         lastFeatures = [];
         currentStreetDiv.style.display = 'none';
-        streetAnalysisDiv.style.display = 'none';
         statusDiv.innerHTML = `<b>Інструкція</b><br/>
           1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>`;
       }
@@ -1591,7 +1271,6 @@
           eventName: 'wme-after-edit',
           eventHandler: () => {
             if (lastFeatures.length > 0) {
-              analyzeStreetMatches();
               applyFeatureFilter();
             }
           }
@@ -1754,7 +1433,6 @@
               }
 
               applyFeatureFilter();
-              analyzeStreetMatches();
 
               // Ensure layer is visible after load
               lastComputedVisibility = true; // Force visibility state
