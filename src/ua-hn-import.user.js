@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick RPP Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version    1.7.14
+// @version    1.7.15
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -590,12 +590,28 @@
       .filter(Boolean);
   }
 
-  // Check if a house number has a nearby conflict.*RPP within threshold distance)
+  // Check if a house number has a nearby RPP within threshold distance
+  // Returns true if: different number nearby (conflict) OR same number nearby (already exists)
   function hasConflict(hn, wx, wy, entry) {
     if (!entry?.items?.length) return false;
     for (const it of entry.items) {
       if (!it || it.x == null || it.y == null) continue;
-      if (it.num !== hn) {
+      const dx = wx - it.x, dy = wy - it.y;
+      if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
+        // Same number nearby = already exists on map
+        // Different number nearby = conflict (too close)
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Check if same house number exists nearby (for "Тільки відсутні" filter)
+  function hasSameNumberNearby(hn, wx, wy, entry) {
+    if (!entry?.items?.length) return false;
+    for (const it of entry.items) {
+      if (!it || it.x == null || it.y == null) continue;
+      if (it.num === hn) {
         const dx = wx - it.x, dy = wy - it.y;
         if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
           return true;
@@ -603,6 +619,42 @@
       }
     }
     return false;
+  }
+
+  // Get venues/RPPs within map extent, grouped by house number for conflict detection
+  // Returns Map<number: { items: [{num, x, y}] }>
+  async function getVenuesInExtentByHouseNumber() {
+    const map = new Map();
+    const ext = wmeSDK.Map.getMapExtent();
+    const [lonMin, latMin, lonMax, latMax] = Array.isArray(ext)
+      ? ext
+      : [ext.lonMin, ext.latMin, ext.lonMax, ext.latMax];
+
+    // Get all venues visible on map
+    const venues = wmeSDK.DataModel.Venues.getAll
+      ? wmeSDK.DataModel.Venues.getAll()
+      : (wmeSDK.DataModel.Venues.getVenues ? wmeSDK.DataModel.Venues.getVenues() : []);
+
+    venues.forEach(venue => {
+      if (!venue.geometry?.coordinates) return;
+      const x = venue.geometry.coordinates[0];
+      const y = venue.geometry.coordinates[1];
+      if (x < lonMin || x > lonMax || y < latMin || y > latMax) return;
+
+      // Get house number from venue
+      const num = venue.houseNumber || venue.address?.houseNumber;
+      if (!num) return;
+
+      const numRaw = String(num).trim();
+      let entry = map.get(numRaw);
+      if (!entry) {
+        entry = { items: [] };
+        map.set(numRaw, entry);
+      }
+      entry.items.push({ num: numRaw, x, y });
+    });
+
+    return map;
   }
 
   // Fetch addresses from Waze Ukraine state register (stat.waze.com.ua)
@@ -1222,13 +1274,30 @@ streets = {};
         if (!lastFeatures.length) return;
 
         const selectionRPPMap = await getVisibleRPPsByStreet();
+        const venueMap = await getVenuesInExtentByHouseNumber();
 
         lastFeatures.forEach(feat => {
           const { number: hn, street: streetId, lon, lat } = feat;
           if (!hn || !streetId) return;
 
           const entry = selectionRPPMap.get(streetId);
-          const processed = (entry?.set.has(hn) === true) || feat.userAdded === true;
+          // Check if same number exists on same street (House Numbers)
+          const sameNumberOnStreet = hasSameNumberNearby(hn, lon, lat, entry);
+          // Check if same number exists nearby (Venues/RPP)
+          const venueEntry = Array.from(venueMap.values()).find(e => e.items.some(it => it.num === hn));
+          let sameNumberAtVenue = false;
+          if (venueEntry) {
+            for (const it of venueEntry.items) {
+              if (it.num === hn) {
+                const dx = lon - it.x, dy = lat - it.y;
+                if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
+                  sameNumberAtVenue = true;
+                  break;
+                }
+              }
+            }
+          }
+          const processed = (entry?.set.has(hn) === true) || sameNumberOnStreet || sameNumberAtVenue || feat.userAdded === true;
           const conflict = !processed && hasConflict(hn, lon, lat, entry);
 
           feat.processed = processed;
@@ -1540,6 +1609,7 @@ streets = {};
         'DataModel.Venues.updateVenueIsResidential',
         'DataModel.Venues.replaceNavigationPoints',
         'DataModel.Venues.getAddress',
+        'DataModel.Venues.getAll',
         'DataModel.Streets.getStreet',
         'DataModel.Streets.getById',
         'Editing.setSelection'
