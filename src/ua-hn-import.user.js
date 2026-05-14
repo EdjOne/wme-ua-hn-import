@@ -615,6 +615,7 @@
     const venues = wmeSDK.DataModel.Venues.getAll
       ? wmeSDK.DataModel.Venues.getAll()
       : (wmeSDK.DataModel.Venues.getVenues ? wmeSDK.DataModel.Venues.getVenues() : []);
+    console.log('[UA-RPP] Venues found:', venues.length);
 
     venues.forEach(venue => {
       if (!venue.geometry?.coordinates) return;
@@ -622,9 +623,17 @@
       const y = venue.geometry.coordinates[1];
       if (x < lonMin || x > lonMax || y < latMin || y > latMax) return;
 
-      // Get house number from venue
-      const num = venue.houseNumber || venue.address?.houseNumber;
-      if (!num) return;
+      // Get house number from venue - RPP can have different structures
+      let num = venue.houseNumber || venue.address?.houseNumber;
+      // Also check alternative fields used by RPP
+      if (!num && venue.address) {
+        num = venue.address.house || venue.address.number;
+      }
+      // Debug: log venues without house number
+      if (!num) {
+        console.debug('[UA-RPP] Venue without houseNumber:', venue.name || venue.id);
+        return;
+      }
 
       const numRaw = String(num).trim();
       let entry = map.get(numRaw);
@@ -1463,6 +1472,7 @@ streets = {};
 
               loading.style.display = 'none';
               const processedCount = features.filter(f => f.processed).length;
+              console.log('[UA-RPP] processedCount:', processedCount, '/', features.length, 'Venue entries:', venueMap.size);
               statusDiv.innerHTML = `Завантажено ${features.length} адрес.<br/>` +
                 `<b>Клікніть на номер на карті, щоб додати!</b><br/>` +
                 `<span style="font-size:11px;color:#666;">` +
