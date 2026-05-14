@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick RPP Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version      1.7.7
+// @version    1.7.8
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
@@ -1680,6 +1680,7 @@
               streetNames = newStreetNames;
 
               const features = [];
+              const seenFeatures = new Set(); // Deduplicate by number+street+lon+lat
 
               for (const item of apiFeatures) {
                 if (!item.lat || !item.lon) continue;
@@ -1690,6 +1691,11 @@
                 const normalizedNum = normalizeHouseNumber(item.number);
                 const processed = entry?.set.has(normalizedNum) === true;
                 const conflict = !processed && hasConflict(normalizedNum, item.lon, item.lat, entry);
+
+                // Create unique key for deduplication
+                const featureKey = `${normalizedNum}|${item.street}|${item.lon}|${item.lat}`;
+                if (seenFeatures.has(featureKey)) continue;
+                seenFeatures.add(featureKey);
 
                 features.push({
                   number: normalizedNum,

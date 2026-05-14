@@ -47,15 +47,20 @@ python3 wme_bot.py --api
 ├── src/
 │   └── ua-hn-import.user.js  # v1.7.7
 
-## 📊 UA-RPP Статус
+## ✅ Статус
 
-- [x] Парсинг nameParts из address_map.php
-- [x] Получение cityId через street вместо segment
-- [x] Защита: RPP не создаётся если улица без названия
-- [x] Удалён функционал navpoints
-- [x] Переименованы UI элементы (UA-HN → UA-RPP)
+- [x] Парсинг nameParts із address_map.php
+- [x] Получення cityId через street вмісті segment
+- [x] Захист: RPP не створюється якщо вулиця без назви
+- [x] Видалено функціонал navpoints
+- [x] Перейменовані UI елементи (UA-HN → UA-RPP)
+- [x] Дедуплікація адрес за номером, вулицею та координатами
 └── data/
     └── test-bbox.json
+
+## 📌 Версії
+
+- **v1.7.8**: Додано дедуплікацію адрес при імпорті
 ```
 
 ## ✅ Статус
