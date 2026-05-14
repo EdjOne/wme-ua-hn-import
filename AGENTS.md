@@ -45,7 +45,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.7.9
+│   └── ua-hn-import.user.js  # v1.7.12
 ```
 
 ## ✅ Статус
@@ -63,5 +63,6 @@ python3 wme_bot.py --api
 ## 📌 Версії
 
 - **v1.7.11**: Покращена дедуплікація з закругленими координатами (4 знаки ≈ 11м)
+- **v1.7.12**: Дедуплікація враховує ID вулиці (item.street) у ключі
 
 P.S. Все HN заменены на RPP (UA-RPP).
