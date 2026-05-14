@@ -68,5 +68,6 @@ python3 wme_bot.py --api
 - **v1.7.14**: Видалено "Вулиці в районі" (analyzeStreetMatches + кнопки → 📋)
 - **v1.7.15**: Чекбокс "Тільки відсутні" тепер перевіряє наявність RPP в радіусі 10м за номером
 - **v1.7.16**: Счётчик "вже в WME" враховує Venues/RPP, а не тільки House Numbers
+- **v1.7.17**: Повне видалення House Numbers API — проект тепер Venues-only (RPP)
 
 P.S. Все HN заменены на RPP (UA-RPP).

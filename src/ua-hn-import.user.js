@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.16
+// @version      1.7.17
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -577,11 +577,6 @@
     return normalized;
   }
 
-  function getRPGeometry(hn) {
-    if (!hn?.geometry?.coordinates) return null;
-    return { x: hn.geometry.coordinates[0], y: hn.geometry.coordinates[1] };
-  }
-
   function getSelectedSegments() {
     const sel = wmeSDK.Editing.getSelection();
     if (!sel || sel.objectType !== 'segment') return [];
@@ -606,23 +601,9 @@
     return false;
   }
 
-  // Check if same house number exists nearby (for "Тільки відсутні" filter)
-  function hasSameNumberNearby(hn, wx, wy, entry) {
-    if (!entry?.items?.length) return false;
-    for (const it of entry.items) {
-      if (!it || it.x == null || it.y == null) continue;
-      if (it.num === hn) {
-        const dx = wx - it.x, dy = wy - it.y;
-        if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
   // Get venues/RPPs within map extent, grouped by house number for conflict detection
-  // Returns Map<number: { items: [{num, x, y}] }>
+  // Venues-only: no segment/house number API (RPP are Venues, not House Numbers)
+  // Returns Map<number: { set: Set, items: [{num, x, y}] }>
   async function getVenuesInExtentByHouseNumber() {
     const map = new Map();
     const ext = wmeSDK.Map.getMapExtent();
@@ -630,7 +611,7 @@
       ? ext
       : [ext.lonMin, ext.latMin, ext.lonMax, ext.latMax];
 
-    // Get all venues visible on map
+    // Get all venues visible on map (RPP are Venues)
     const venues = wmeSDK.DataModel.Venues.getAll
       ? wmeSDK.DataModel.Venues.getAll()
       : (wmeSDK.DataModel.Venues.getVenues ? wmeSDK.DataModel.Venues.getVenues() : []);
@@ -648,9 +629,10 @@
       const numRaw = String(num).trim();
       let entry = map.get(numRaw);
       if (!entry) {
-        entry = { items: [] };
+        entry = { set: new Set(), items: [] };
         map.set(numRaw, entry);
       }
+      entry.set.add(numRaw);
       entry.items.push({ num: numRaw, x, y });
     });
 
@@ -1273,31 +1255,30 @@ streets = {};
       async function recalculateFeatureStates() {
         if (!lastFeatures.length) return;
 
-        const selectionRPPMap = await getVisibleRPPsByStreet();
         const venueMap = await getVenuesInExtentByHouseNumber();
 
         lastFeatures.forEach(feat => {
-          const { number: hn, street: streetId, lon, lat } = feat;
-          if (!hn || !streetId) return;
+          const { number: hn, lon, lat } = feat;
+          if (!hn || lon == null || lat == null) return;
 
-          const entry = selectionRPPMap.get(streetId);
-          // Check if same number exists on same street (House Numbers)
-          const sameNumberOnStreet = hasSameNumberNearby(hn, lon, lat, entry);
-          // Check if same number exists nearby (Venues/RPP)
-          const venueEntry = Array.from(venueMap.values()).find(e => e.items.some(it => it.num === hn));
-          let sameNumberAtVenue = false;
-          if (venueEntry) {
-            for (const it of venueEntry.items) {
-              if (it.num === hn) {
+          // Venues-only: check by house number
+          const entry = venueMap.get(hn);
+
+          // Check if same number exists nearby
+          let sameNumberNearby = false;
+          if (entry?.items?.length) {
+            for (const it of entry.items) {
+              if (it.x != null && it.y != null) {
                 const dx = lon - it.x, dy = lat - it.y;
                 if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
-                  sameNumberAtVenue = true;
+                  sameNumberNearby = true;
                   break;
                 }
               }
             }
           }
-          const processed = (entry?.set.has(hn) === true) || sameNumberOnStreet || sameNumberAtVenue || feat.userAdded === true;
+
+          const processed = sameNumberNearby || feat.userAdded === true;
           const conflict = !processed && hasConflict(hn, lon, lat, entry);
 
           feat.processed = processed;
@@ -1306,47 +1287,6 @@ streets = {};
 
         applyFeatureFilter();
       }
-
-      function setupHouseNumberEventListeners() {
-        const events = [
-          'wme-house-number-added',
-          'wme-house-number-deleted',
-          'wme-house-number-moved',
-          'wme-house-number-updated'
-        ];
-
-        events.forEach(eventName => {
-          wmeSDK.Events.on({
-            eventName,
-            eventHandler: () => {
-              if (lastFeatures.length > 0) {
-                recalculateFeatureStates().catch(err => console.warn('[UA-RPP] recalculate failed:', err));
-              }
-            }
-          });
-        });
-
-        wmeSDK.Events.on({
-          eventName: 'wme-map-data-loaded',
-          eventHandler: () => {
-            if (lastFeatures.length > 0) {
-              recalculateFeatureStates().catch(err => console.warn('[UA-RPP] recalculate failed:', err));
-            }
-          }
-        });
-
-        // Listen for segment edits (like street name changes) to refresh UI
-        wmeSDK.Events.on({
-          eventName: 'wme-after-edit',
-          eventHandler: () => {
-            if (lastFeatures.length > 0) {
-              applyFeatureFilter();
-            }
-          }
-        });
-      }
-
-      setupHouseNumberEventListeners();
 
       // Register keyboard shortcuts
       ['qhnua-load', 'qhnua-clear'].forEach(id => {
@@ -1414,10 +1354,9 @@ streets = {};
 
           Promise.all([
             fetchAddressesWaze(centerLat, centerLon, radius),
-            getVisibleRPPsByStreet(),
             getVenuesInExtentByHouseNumber()
           ])
-            .then(([apiResult, selectionRPPMap, venueMap]) => {
+            .then(([apiResult, venueMap]) => {
               // Bail out if user clicked Clear (or started a newer load) while the fetch was in flight
               if (loadId !== currentLoadId) {
                 loading.style.display = 'none';
@@ -1441,13 +1380,12 @@ streets = {};
 
 // TODO: Filter by city using coordinates (nearest city lookup via kadastrova-karta API)
 
-                const entry = selectionRPPMap.get(item.street);
                 const normalizedNum = normalizeHouseNumber(item.number);
-                // Check if already processed (House Number or Venue with same number nearby)
-                let processed = entry?.set.has(normalizedNum) === true;
-                // Also check Venues/RPPs
-                if (!processed && venueMap.has(normalizedNum)) {
-                  for (const venueEntry of venueMap.get(normalizedNum).items) {
+                // Venues-only: check if this number exists nearby (within 10m)
+                let processed = false;
+                const entry = venueMap.get(normalizedNum);
+                if (entry?.items?.length) {
+                  for (const venueEntry of entry.items) {
                     const dx = item.lon - venueEntry.x, dy = item.lat - venueEntry.y;
                     if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
                       processed = true;
@@ -1455,6 +1393,7 @@ streets = {};
                     }
                   }
                 }
+                // Also check for conflicts (different number nearby)
                 const conflict = !processed && hasConflict(normalizedNum, item.lon, item.lat, entry);
 
                 // Create unique key: number + street only (same address cannot appear twice on one street)
@@ -1543,65 +1482,7 @@ streets = {};
         });
       }
 
-      // Visible RPPs grouped by normalized street name (primary + alternate)
-      async function getVisibleRPPsByStreet() {
-        const map = new Map();
-        const ext = wmeSDK.Map.getMapExtent();
-        const [lonMin, latMin, lonMax, latMax] = Array.isArray(ext)
-          ? ext
-          : [ext.lonMin, ext.latMin, ext.lonMax, ext.latMax];
-
-        const segIds = wmeSDK.DataModel.Segments.getAll()
-          .filter(s => s.hasHouseNumbers)
-          .map(s => s.id);
-        const allHns = segIds.length
-          ? await wmeSDK.DataModel.HouseNumbers.fetchHouseNumbers({ segmentIds: segIds })
-          : [];
-
-        allHns.forEach(hn => {
-          const seg = wmeSDK.DataModel.Segments.getById({ segmentId: hn.segmentId });
-          if (!seg) return;
-
-          const streetIdSet = new Set();
-          if (seg.primaryStreetId) {
-            streetIdSet.add(seg.primaryStreetId);
-          }
-          (seg.alternateStreetIds || []).forEach(id => {
-            if (id) streetIdSet.add(id);
-          });
-          if (!streetIdSet.size) return;
-
-          const g = getRPGeometry(hn);
-          let x, y;
-          if (g && typeof g.x === 'number' && typeof g.y === 'number') {
-            x = g.x;
-            y = g.y;
-          }
-          if (x == null || y == null || x < lonMin || x > lonMax || y < latMin || y > latMax) return;
-
-          const numRaw = String(hn.number).trim();
-
-          streetIdSet.forEach(streetId => {
-            const st = wmeSDK.DataModel.Streets.getById({ streetId });
-            const name = st?.name;
-            if (!name) return;
-
-            const sidNorm = normalizeStreetName(name);
-
-            let entry = map.get(sidNorm);
-            if (!entry) {
-              entry = { set: new Set(), items: [] };
-              map.set(sidNorm, entry);
-            }
-
-            entry.set.add(numRaw);
-            entry.items.push({ num: numRaw, x, y });
-          });
-        });
-
-        return map;
-      }
-    });
+      });
   }
 
   (unsafeWindow || window).SDK_INITIALIZED.then(() => {
