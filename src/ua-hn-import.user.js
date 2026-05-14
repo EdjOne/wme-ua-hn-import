@@ -1680,7 +1680,7 @@
               streetNames = newStreetNames;
 
               // Persistent deduplication Set (survives between updateLayer calls)
-              // Key: normalized number + normalized street name (without coordinates - they may vary slightly)
+              // Key: normalized number only (street IDs may differ for same street via alternate names)
               if (!window.__uaRppSeenFeatures) window.__uaRppSeenFeatures = new Set();
               const seenFeatures = window.__uaRppSeenFeatures;
 
@@ -1695,8 +1695,8 @@
                 const processed = entry?.set.has(normalizedNum) === true;
                 const conflict = !processed && hasConflict(normalizedNum, item.lon, item.lat, entry);
 
-                // Create unique key for deduplication (number + street only, not coordinates)
-                const featureKey = `${normalizedNum}|${item.street}`;
+                // Create unique key for deduplication (number only - street IDs may differ for same street)
+                const featureKey = normalizedNum;
                 if (seenFeatures.has(featureKey)) continue;
                 seenFeatures.add(featureKey);
 
