@@ -45,7 +45,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.7.5 (FIX: нормализация дробей "2/ 17" → "2/17")
+│   └── ua-hn-import.user.js  # v1.7.6 (REF: HN → RPP rename)
 
 ## 📊 UA-RPP Статус
 
