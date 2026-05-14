@@ -45,7 +45,8 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.7.8
+│   └── ua-hn-import.user.js  # v1.7.9
+```
 
 ## ✅ Статус
 
@@ -55,20 +56,12 @@ python3 wme_bot.py --api
 - [x] Видалено функціонал navpoints
 - [x] Перейменовані UI елементи (UA-HN → UA-RPP)
 - [x] Дедуплікація адрес за номером, вулицею та координатами
+- [x] Оновлено @updateURL/@downloadURL на github.com формат
 └── data/
     └── test-bbox.json
 
 ## 📌 Версії
 
 - **v1.7.9**: Оновлено @updateURL/@downloadURL на github.com формат
-```
-
-## ✅ Статус
-
-- [x] Парсер улиц из текста
-- [x] Геокодинг OSM Nominatim
-- [x] WME permalink generator
-- [x] Telegram бот
-- [ ] Деплой на сервер
 
 P.S. Все HN заменены на RPP (UA-RPP).
