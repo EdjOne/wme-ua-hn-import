@@ -38,7 +38,7 @@
   let wmeSDK;
   const SDK_LAYER_NAME = 'qhnua-sdk';
   const MAX_CLICK_DISTANCE_PX = 25;
-  const MAX_HN_CONFLICT_DISTANCE = 10;
+  const MAX_RPP_CONFLICT_DISTANCE = 10;
 
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
 
@@ -474,10 +474,10 @@
       if (wmeSDK?.Notifications?.show) {
         wmeSDK.Notifications.show({ text: msg, type, timeout: 3500 });
       } else {
-        console.info(`[UA-HN] ${msg}`);
+        console.info(`[UA-RPP] ${msg}`);
       }
     } catch (_) {
-      console.info(`[UA-HN] ${msg}`);
+      console.info(`[UA-RPP] ${msg}`);
     }
   };
 
@@ -631,7 +631,7 @@
     return dp[m][n];
   }
 
-  function getHNGeometry(hn) {
+  function getRPGeometry(hn) {
     if (!hn?.geometry?.coordinates) return null;
     return { x: hn.geometry.coordinates[0], y: hn.geometry.coordinates[1] };
   }
@@ -644,14 +644,14 @@
       .filter(Boolean);
   }
 
-  // Check if a house number has a nearby conflict (different HN within threshold distance)
+  // Check if a house number has a nearby conflict.*RPP within threshold distance)
   function hasConflict(hn, wx, wy, entry) {
     if (!entry?.items?.length) return false;
     for (const it of entry.items) {
       if (!it || it.x == null || it.y == null) continue;
       if (it.num !== hn) {
         const dx = wx - it.x, dy = wy - it.y;
-        if (dx * dx + dy * dy <= MAX_HN_CONFLICT_DISTANCE * MAX_HN_CONFLICT_DISTANCE) {
+        if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
           return true;
         }
       }
@@ -744,7 +744,7 @@
 
               if (!houseNumber) continue;
 
-              const normalizedHN = normalizeHouseNumber(houseNumber);
+              const normalizedRPP = normalizeHouseNumber(houseNumber);
               const streetId = normalizeStreetName(street);
               if (!streets[street]) {
                 streets[street] = streetId;
@@ -752,10 +752,10 @@
               }
 
               features.push({
-                number: normalizedHN,
+                number: normalizedRPP,
                 street: streetId,
                 streetRaw: street,
-                houseNumberRaw: normalizedHN,
+                houseNumberRaw: normalizedRPP,
                 lat: lat,
                 lon: lon,
                 city: city,
@@ -819,28 +819,28 @@
       });
 
       if (!street) {
-        console.debug('[UA-HN] Вулицю не знайдено, створюємо нову:', newStreetName);
+        console.debug('[UA-RPP] Вулицю не знайдено, створюємо нову:', newStreetName);
         street = wmeSDK.DataModel.Streets.addStreet({
           streetName: newStreetName,
           cityId: cityId
         });
       }
 
-      console.debug('[UA-HN] Знайдено вулицю:', street);
+      console.debug('[UA-RPP] Знайдено вулицю:', street);
 
       wmeSDK.DataModel.Segments.updateAddress({
         segmentId: segmentId,
         primaryStreetId: street.id
       });
 
-      console.debug('[UA-HN] Оновлено сегмент', segmentId, 'на вулицю ID:', street.id);
+      console.debug('[UA-RPP] Оновлено сегмент', segmentId, 'на вулицю ID:', street.id);
       toast(`Оновлено назву вулиці на "${newStreetName}"`, 'success');
 
       if (typeof onSuccess === 'function') {
         onSuccess();
       }
     } catch (err) {
-      console.error('[UA-HN] Помилка оновлення назви вулиці:', err);
+      console.error('[UA-RPP] Помилка оновлення назви вулиці:', err);
       toast('Помилка оновлення назви вулиці', 'error');
     }
   }
@@ -865,7 +865,7 @@
     let analyzeStreetMatches = () => {};
 
     try {
-      I18n.translations[I18n.currentLocale()].layers.name['quick-hn-ua-importer'] = 'Quick HN Importer (UA)';
+      I18n.translations[I18n.currentLocale()].layers.name['quick-rpp-ua-importer'] = 'Quick RPP Importer (UA)';
     } catch (_) {}
 
     wmeSDK.Map.addLayer({
@@ -1188,7 +1188,7 @@
     }
 
     function handleMapClick(evt) {
-      console.log('[UA-HN] handleMapClick', { hasFeatures: !!lastFeatures.length, evt });
+      console.log('[UA-RPP] handleMapClick', { hasFeatures: !!lastFeatures.length, evt });
       if (!lastFeatures.length) return;
       
       // Support both coordinate formats
@@ -1201,21 +1201,21 @@
       let bestDistSq = Infinity;
 
       for (const f of lastFeatures) {
-        console.log('[UA-HN] Checking feature', { lon: f.lon, lat: f.lat, number: f.number });
+        console.log('[UA-RPP] Checking feature', { lon: f.lon, lat: f.lat, number: f.number });
         if (f.lon == null || f.lat == null || isNaN(f.lon) || isNaN(f.lat)) continue;
         const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
         if (!fPx) continue;
         const dx = fPx.x - x;
         const dy = fPx.y - y;
         const d2 = dx * dx + dy * dy;
-        console.log('[UA-HN] Dist check', { number: f.number, d2, max: MAX_PIXELS_SQ });
+        console.log('[UA-RPP] Dist check', { number: f.number, d2, max: MAX_PIXELS_SQ });
         if (d2 <= MAX_PIXELS_SQ && d2 < bestDistSq) {
           bestDistSq = d2;
           bestFeature = f;
         }
       }
 
-      console.log('[UA-HN] Best feature', { bestFeature: bestFeature?.number });
+      console.log('[UA-RPP] Best feature', { bestFeature: bestFeature?.number });
       if (!bestFeature) return;
       onFeatureClick(bestFeature);
     }
@@ -1223,10 +1223,10 @@
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
 
     function onFeatureClick(feature) {
-      console.log('[UA-HN] onFeatureClick', { processed: feature.processed, number: feature.number, lat: feature.lat, lon: feature.lon });
+      console.log('[UA-RPP] onFeatureClick', { processed: feature.processed, number: feature.number, lat: feature.lat, lon: feature.lon });
       if (feature.processed) return;
       if (typeof feature.lat !== 'number' || typeof feature.lon !== 'number' || isNaN(feature.lat) || isNaN(feature.lon)) {
-        console.warn('[UA-HN] Invalid coordinates for feature:', feature);
+        console.warn('[UA-RPP] Invalid coordinates for feature:', feature);
         return;
       }
 
@@ -1237,7 +1237,7 @@
       try {
         // Find the nearest segment to get the street
         const segments = wmeSDK.DataModel.Segments.getAll();
-        console.log('[UA-HN] Total segments:', segments.length);
+        console.log('[UA-RPP] Total segments:', segments.length);
         
         let nearestStreetId = null;
         let minDist = Infinity;
@@ -1280,7 +1280,7 @@
         }
         
         if (!nearestStreetId) {
-          console.warn('[UA-HN] Не знайдено сегментів. Мінімальна відстань:', minDist, 'px');
+          console.warn('[UA-RPP] Не знайдено сегментів. Мінімальна відстань:', minDist, 'px');
           throw new Error('Не знайдено сегментів поруч з цим маркером');
         }
         
@@ -1291,7 +1291,7 @@
         }
         
         const streetId = nearestStreetId;
-        console.log('[UA-HN] Nearest segment street ID:', streetId, 'distance:', minDist, 'px');
+        console.log('[UA-RPP] Nearest segment street ID:', streetId, 'distance:', minDist, 'px');
 
         const geometry = {
           type: 'Point',
@@ -1342,17 +1342,17 @@
           }
         });
 
-        console.log('[UA-HN] RPP created:', { venueId, streetId, houseNumber });
+        console.log('[UA-RPP] RPP created:', { venueId, streetId, houseNumber });
 
         feature.userAdded = true;
         feature.processed = true;
         feature.conflict = false;
         applyFeatureFilter();
 
-        console.log('[UA-HN] Додано RPP', houseNumber);
+        console.log('[UA-RPP] Додано RPP', houseNumber);
         toast(`Додано RPP ${houseNumber} 🏠`, 'success');
       } catch (err) {
-        console.error('[UA-HN] Помилка додавання RPP:', err);
+        console.error('[UA-RPP] Помилка додавання RPP:', err);
         toast(err.message || 'Помилка додавання RPP', 'error');
       }
     }
@@ -1469,7 +1469,7 @@
         lastFeatures = [];
         streetAnalysisDiv.style.display = 'none';
 
-        await updateLayer(statusDiv, myLoadId).catch(err => console.warn('UA-HN updateLayer:', err));
+        await updateLayer(statusDiv, myLoadId).catch(err => console.warn('UA-RPP updateLayer:', err));
 
         // Skip post-load side effects if user clicked Clear (or started another Load) mid-fetch
         if (myLoadId === currentLoadId) {
@@ -1509,7 +1509,7 @@
       btnClear.addEventListener('click', clearLayer);
 
       applyFeatureFilter = function () {
-        console.log('[UA-HN] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length });
+        console.log('[UA-RPP] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length });
         const onlyMissing  = chkMissing?.hasAttribute('checked');
         const visible = lastFeatures.filter(feat => {
           if (onlyMissing && feat.processed) return false;
@@ -1539,13 +1539,13 @@
       async function recalculateFeatureStates() {
         if (!lastFeatures.length) return;
 
-        const selectionHNMap = await getVisibleHNsByStreet();
+        const selectionRPPMap = await getVisibleRPPsByStreet();
 
         lastFeatures.forEach(feat => {
           const { number: hn, street: streetId, lon, lat } = feat;
           if (!hn || !streetId) return;
 
-          const entry = selectionHNMap.get(streetId);
+          const entry = selectionRPPMap.get(streetId);
           const processed = (entry?.set.has(hn) === true) || feat.userAdded === true;
           const conflict = !processed && hasConflict(hn, lon, lat, entry);
 
@@ -1569,7 +1569,7 @@
             eventName,
             eventHandler: () => {
               if (lastFeatures.length > 0) {
-                recalculateFeatureStates().catch(err => console.warn('[UA-HN] recalculate failed:', err));
+                recalculateFeatureStates().catch(err => console.warn('[UA-RPP] recalculate failed:', err));
               }
             }
           });
@@ -1579,7 +1579,7 @@
           eventName: 'wme-map-data-loaded',
           eventHandler: () => {
             if (lastFeatures.length > 0) {
-              recalculateFeatureStates().catch(err => console.warn('[UA-HN] recalculate failed:', err));
+              recalculateFeatureStates().catch(err => console.warn('[UA-RPP] recalculate failed:', err));
             }
           }
         });
@@ -1603,11 +1603,11 @@
         try { wmeSDK.Shortcuts.deleteShortcut({ shortcutId: id }); } catch (_) {}
       });
       [
-        { shortcutId: 'qhnua-load',  shortcutKeys: 'AS+l', description: 'UA-HN: Завантажити', callback: loadSelectedStreet },
-        { shortcutId: 'qhnua-clear', shortcutKeys: 'AS+k', description: 'UA-HN: Очистити',                callback: clearLayer }
+        { shortcutId: 'qhnua-load',  shortcutKeys: 'AS+l', description: 'UA-RPP: Завантажити', callback: loadSelectedStreet },
+        { shortcutId: 'qhnua-clear', shortcutKeys: 'AS+k', description: 'UA-RPP: Очистити',                callback: clearLayer }
       ].forEach(spec => {
         try { wmeSDK.Shortcuts.createShortcut(spec); }
-        catch (e) { console.warn('UA-HN: не вдалося зареєструвати хоткей', spec.shortcutId, e); }
+        catch (e) { console.warn('UA-RPP: не вдалося зареєструвати хоткей', spec.shortcutId, e); }
       });
 
       function updateLayer(statusDiv, loadId) {
@@ -1627,7 +1627,7 @@
           const street = segment.primaryStreetId ? wmeSDK.DataModel.Streets.getById({ streetId: segment.primaryStreetId }) : null;
           const cityId = street?.cityId;
           const city = cityId ? wmeSDK.DataModel.Cities.getById({ cityId })?.name : null;
-          console.log('[UA-HN] Selected city:', city, 'cityId:', cityId);
+          console.log('[UA-RPP] Selected city:', city, 'cityId:', cityId);
 
           // Compute bounding box of selected segments to get center
           let minLon = Infinity, maxLon = -Infinity;
@@ -1664,9 +1664,9 @@
 
           Promise.all([
             fetchAddressesWaze(centerLat, centerLon, radius),
-            getVisibleHNsByStreet()
+            getVisibleRPPsByStreet()
           ])
-            .then(([apiResult, selectionHNMap]) => {
+            .then(([apiResult, selectionRPPMap]) => {
               // Bail out if user clicked Clear (or started a newer load) while the fetch was in flight
               if (loadId !== currentLoadId) {
                 loading.style.display = 'none';
@@ -1675,7 +1675,7 @@
               }
 
               const { features: apiFeatures, streets: newStreets, streetNames: newStreetNames } = apiResult;
-              console.log('[UA-HN] API returned', apiFeatures.length, 'features');
+              console.log('[UA-RPP] API returned', apiFeatures.length, 'features');
               streets = newStreets;
               streetNames = newStreetNames;
 
@@ -1686,7 +1686,7 @@
 
 // TODO: Filter by city using coordinates (nearest city lookup via kadastrova-karta API)
 
-                const entry = selectionHNMap.get(item.street);
+                const entry = selectionRPPMap.get(item.street);
                 const normalizedNum = normalizeHouseNumber(item.number);
                 const processed = entry?.set.has(normalizedNum) === true;
                 const conflict = !processed && hasConflict(normalizedNum, item.lon, item.lat, entry);
@@ -1761,7 +1761,7 @@
               resolve();
             })
             .catch(err => {
-              console.error('[UA-HN] Помилка API:', err);
+              console.error('[UA-RPP] Помилка API:', err);
               loading.style.display = 'none';
               if (loadId === currentLoadId) {
                 statusDiv.textContent = 'Помилка отримання даних. Перевірте консоль.';
@@ -1772,8 +1772,8 @@
         });
       }
 
-      // Visible HNs grouped by normalized street name (primary + alternate)
-      async function getVisibleHNsByStreet() {
+      // Visible RPPs grouped by normalized street name (primary + alternate)
+      async function getVisibleRPPsByStreet() {
         const map = new Map();
         const ext = wmeSDK.Map.getMapExtent();
         const [lonMin, latMin, lonMax, latMax] = Array.isArray(ext)
@@ -1800,7 +1800,7 @@
           });
           if (!streetIdSet.size) return;
 
-          const g = getHNGeometry(hn);
+          const g = getRPGeometry(hn);
           let x, y;
           if (g && typeof g.x === 'number' && typeof g.y === 'number') {
             x = g.x;
@@ -1834,7 +1834,7 @@
   }
 
   (unsafeWindow || window).SDK_INITIALIZED.then(() => {
-    wmeSDK = getWmeSdk({ scriptId: 'quick-hn-ua-importer', scriptName: 'Quick HN Importer (UA)' });
+    wmeSDK = getWmeSdk({ scriptId: 'quick-rpp-ua-importer', scriptName: 'Quick RPP Importer (UA)' });
     wmeSDK.Events.once({ eventName: 'wme-ready' }).then(() => {
       const required = [
         'Map.addLayer',
@@ -1861,8 +1861,8 @@
         return false;
       });
       if (missing.length) {
-        console.error('[UA-HN] WME SDK відсутні необхідні API:', missing);
-        toast(`UA-HN: WME SDK не має ${missing.length} необхідних API. Див. консоль.`, 'error');
+        console.error('[UA-RPP] WME SDK відсутні необхідні API:', missing);
+        toast(`UA-RPP: WME SDK не має ${missing.length} необхідних API. Див. консоль.`, 'error');
         return;
       }
       init();

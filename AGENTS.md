@@ -45,7 +45,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.7.5 (нормализация номеров: дроби, буквы кирилицей)
+│   └── ua-hn-import.user.js  # v1.7.5 (FIX: нормализация дробей "2/ 17" → "2/17")
 
 ## 📊 UA-RPP Статус
 
@@ -65,3 +65,5 @@ python3 wme_bot.py --api
 - [x] WME permalink generator
 - [x] Telegram бот
 - [ ] Деплой на сервер
+
+P.S. Все HN заменены на RPP (UA-RPP).
