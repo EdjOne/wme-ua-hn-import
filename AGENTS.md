@@ -84,5 +84,6 @@ python3 wme_bot.py --api
 - **v1.7.42**: RPP як простий текст без бейджа
 - **v1.7.43**: RPP → ▶ (треугольник)
 - **v1.7.44**: ▶ → ▲ (повернутий на 90°)
+- **v1.7.45**: Видалено блок STREET_RENAMES (Odessa rename mapping)
 
 P.S. Все HN заменены на RPP (UA-RPP).
