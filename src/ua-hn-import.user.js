@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.18
+// @version      1.7.19
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -623,11 +623,18 @@
       const y = venue.geometry.coordinates[1];
       if (x < lonMin || x > lonMax || y < latMin || y > latMax) return;
 
+      // Debug: log venue structure for RPP detection
+      console.debug('[UA-RPP] Venue structure:', { id: venue.id, name: venue.name, houseNumber: venue.houseNumber, address: venue.address, isRPP: venue.isResidential });
+
       // Get house number from venue - RPP can have different structures
       let num = venue.houseNumber || venue.address?.houseNumber;
       // Also check alternative fields used by RPP
       if (!num && venue.address) {
         num = venue.address.house || venue.address.number;
+      }
+      // More RPP formats from WME SDK
+      if (!num) {
+        num = venue.residentialAddress?.houseNumber || venue.attributes?.houseNumber || venue.secondaryAttributes?.houseNumber;
       }
       // Debug: log venues without house number
       if (!num) {
