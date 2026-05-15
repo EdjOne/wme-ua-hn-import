@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.56
+// @version 1.7.57
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -352,7 +352,13 @@
         return;
       }
 
-      const url = `https://api.visicom.ua/data-api/v2.0/objects?api_key=${apiKey}&types=address&bbox=${bounds.minLon},${bounds.minLat},${bounds.maxLon},${bounds.maxLat}`;
+      // Using Visicom API 5.0 format (from wme-e50)
+      const centerLat = (bounds.minLat + bounds.maxLat) / 2;
+      const centerLon = (bounds.minLon + bounds.maxLon) / 2;
+      const radius = Math.max(bounds.maxLat - bounds.minLat, bounds.maxLon - bounds.minLon) / 2 * 111000;
+
+      const url = `https://api.visicom.ua/data-api/5.0/uk/geocode.json?key=${apiKey}&near=${centerLon},${centerLat}&categories=adr_address&radius=${Math.round(radius)}&limit=1000`;
+      console.log('[Visicom] Request URL:', url);
 
       GM_xmlhttpRequest({
         method: 'GET',
@@ -361,7 +367,7 @@
         onload: function(response) {
           // Check HTTP status
           if (response.status >= 400) {
-            console.error('[Visicom] HTTP error:', response.status, response.responseText);
+            console.error('[Visicom] HTTP error:', response.status, response.responseText?.substring(0, 500));
             reject(new Error(`Visicom API error: ${response.status}`));
             return;
           }
@@ -371,14 +377,17 @@
 
             for (const feature of (data.features || [])) {
               const props = feature.properties || {};
-              const coords = feature.geometry?.coordinates || [];
+              const coords = feature.geo_centroid?.coordinates || [];
 
-              if (!props.house_number && !props.name) continue;
+              if (!props.name && !props.house_number) continue;
+
+              const street = props.street_type ? `${props.street_type} ${props.street || ''}`.trim() : (props.street || '');
+              const city = props.settlement || '';
 
               features.push({
-                number: props.house_number || props.name || '',
-                street: props.street_name || '',
-                city: props.city || '',
+                number: props.name || props.house_number || '',
+                street: street,
+                city: city,
                 lat: coords[1],
                 lon: coords[0]
               });

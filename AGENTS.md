@@ -96,4 +96,7 @@ python3 wme_bot.py --api
 - **v1.7.54**: Додано fetchAddressesVisicom (потрібен API ключ)
 - **v1.7.55**: Додано debug Visicom API (статус + response)
 
+- **v1.7.56**: Виправлено ReferenceError в onerror (response)
+- **v1.7.57**: Visicom API 5.0 (geocode.json з wme-e50)
+
 P.S. Все HN заменены на RPP (UA-RPP).
