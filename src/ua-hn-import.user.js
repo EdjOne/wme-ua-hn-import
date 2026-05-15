@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.47
+// @version 1.7.48
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -802,20 +802,23 @@
 
           // Get visible map bounds instead of segment selection
           const extent = wmeSDK.Map.getMapExtent();
-          if (!extent || !extent.northEast || !extent.southWest) {
+          // WME SDK format: { _northEast: { lat, lng }, _southWest: { lat, lng } }
+          const ne = extent?._northEast || extent?.northEast;
+          const sw = extent?._southWest || extent?.southWest;
+          if (!ne || !sw) {
             loading.style.display = 'none';
             statusDiv.textContent = 'Не вдалося отримати межі карти.';
             resolve();
             return;
           }
 
-          const centerLat = (extent.northEast.lat + extent.southWest.lat) / 2;
-          const centerLon = (extent.northEast.lng + extent.southWest.lng) / 2;
+          const centerLat = (ne.lat + sw.lat) / 2;
+          const centerLon = (ne.lng + sw.lng) / 2;
           const zoom = wmeSDK.Map.getZoomLevel();
 
           // Radius based on visible extent + user buffer
-          const latRadius = (extent.northEast.lat - extent.southWest.lat) / 2 * 111000; // rough meters per degree
-          const lonRadius = (extent.northEast.lng - extent.southWest.lng) / 2 * 111000;
+          const latRadius = (ne.lat - sw.lat) / 2 * 111000;
+          const lonRadius = (ne.lng - sw.lng) / 2 * 111000;
           let radius = Math.max(latRadius, lonRadius) * 0.6; // 60% of half-diagonal
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
@@ -892,6 +895,7 @@
                 return;
               }
 
+              statusDiv.textContent = `Знайдено: ${features.length} адрес (радіус: ${Math.round(radius)}м)`;
               lastFeatures = features;
 
               if (currentStreetId && streetNames[currentStreetId]) {
