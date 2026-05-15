@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.37
+// @version      1.7.38
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1064,8 +1064,8 @@
             1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>
           </div>
           <div style="margin-top:12px;padding-top:6px;border-top:1px solid #eee;width:100%;box-sizing:border-box;">
-            <div style="background:#005bbb;color:#fff;padding:4px;font-size:11px;font-weight:bold;text-align:center;width:100%;box-sizing:border-box;">made in</div>
-            <div style="background:#ffd500;color:#000;padding:4px;font-size:11px;font-weight:bold;text-align:center;width:100%;box-sizing:border-box;">Ukraine</div>
+            <div style="background:#005bbb;color:#fff;padding:6px;font-size:13px;font-weight:bold;text-align:center;width:100%;box-sizing:border-box;">made in</div>
+            <div style="background:#ffd500;color:#000;padding:6px;font-size:13px;font-weight:bold;text-align:center;width:100%;box-sizing:border-box;">Ukraine</div>
           </div>
         </div>
       `;
