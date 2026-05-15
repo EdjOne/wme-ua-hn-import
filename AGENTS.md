@@ -98,5 +98,6 @@ python3 wme_bot.py --api
 
 - **v1.7.56**: Виправлено ReferenceError в onerror (response)
 - **v1.7.57**: Visicom API 5.0 (geocode.json з wme-e50)
+- **v1.7.58**: Додано debug кількості адрес + детальні помилки JSON
 
 P.S. Все HN заменены на RPP (UA-RPP).
