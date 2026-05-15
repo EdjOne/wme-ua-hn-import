@@ -620,7 +620,6 @@
     const venues = wmeSDK.DataModel.Venues.getAll
       ? wmeSDK.DataModel.Venues.getAll()
       : (wmeSDK.DataModel.Venues.getVenues ? wmeSDK.DataModel.Venues.getVenues() : []);
-    console.log('[UA-RPP] Venues found:', venues.length);
 
     venues.forEach(venue => {
       if (!venue.geometry?.coordinates) return;
@@ -928,7 +927,6 @@
     }
 
     function handleMapClick(evt) {
-      console.log('[UA-RPP] handleMapClick', { hasFeatures: !!lastFeatures.length, evt });
       if (!lastFeatures.length) return;
       
       // Support both coordinate formats
@@ -941,21 +939,18 @@
       let bestDistSq = Infinity;
 
       for (const f of lastFeatures) {
-        console.log('[UA-RPP] Checking feature', { lon: f.lon, lat: f.lat, number: f.number });
         if (f.lon == null || f.lat == null || isNaN(f.lon) || isNaN(f.lat)) continue;
         const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
         if (!fPx) continue;
         const dx = fPx.x - x;
         const dy = fPx.y - y;
         const d2 = dx * dx + dy * dy;
-        console.log('[UA-RPP] Dist check', { number: f.number, d2, max: MAX_PIXELS_SQ });
         if (d2 <= MAX_PIXELS_SQ && d2 < bestDistSq) {
           bestDistSq = d2;
           bestFeature = f;
         }
       }
 
-      console.log('[UA-RPP] Best feature', { bestFeature: bestFeature?.number });
       if (!bestFeature) return;
       onFeatureClick(bestFeature);
     }
@@ -963,7 +958,6 @@
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
 
     function onFeatureClick(feature) {
-      console.log('[UA-RPP] onFeatureClick', { processed: feature.processed, number: feature.number, lat: feature.lat, lon: feature.lon });
       if (feature.processed) return;
       if (typeof feature.lat !== 'number' || typeof feature.lon !== 'number' || isNaN(feature.lat) || isNaN(feature.lon)) {
         console.warn('[UA-RPP] Invalid coordinates for feature:', feature);
@@ -977,7 +971,6 @@
       try {
         // Find the nearest segment to get the street
         const segments = wmeSDK.DataModel.Segments.getAll();
-        console.log('[UA-RPP] Total segments:', segments.length);
         
         let nearestStreetId = null;
         let minDist = Infinity;
@@ -1031,7 +1024,6 @@
         }
         
         const streetId = nearestStreetId;
-        console.log('[UA-RPP] Nearest segment street ID:', streetId, 'distance:', minDist, 'px');
 
         const geometry = {
           type: 'Point',
@@ -1082,7 +1074,6 @@
           }
         });
 
-        console.log('[UA-RPP] RPP created:', { venueId, streetId, houseNumber });
 
         // Add to venue cache so filter recognizes it immediately
         if (venueMapCache) {
@@ -1100,7 +1091,6 @@
         feature.conflict = false;
         applyFeatureFilter();
 
-        console.log('[UA-RPP] Додано RPP', houseNumber);
         toast(`Додано RPP ${houseNumber} 🏠`, 'success');
       } catch (err) {
         console.error('[UA-RPP] Помилка додавання RPP:', err);
@@ -1178,9 +1168,7 @@
         setChecked(chkMissing, isEnabling);
         LS.setSelectedOnly(isEnabling);
         if (isEnabling) {
-          console.log('[UA-RPP] Building venue cache for missing filter...');
           venueMapCache = await getVenuesInExtentByHouseNumber();
-          console.log('[UA-RPP] Cache built:', venueMapCache ? venueMapCache.size + ' entries' : 'null');
         } else {
           venueMapCache = null;
         }
@@ -1270,12 +1258,10 @@
       btnClear.addEventListener('click', clearLayer);
 
       applyFeatureFilter = function () {
-        console.log('[UA-RPP] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length });
         const onlyMissing = chkMissing?.hasAttribute('checked');
 
         // If onlyMissing enabled but cache not built yet, don't filter (show all)
         if (onlyMissing && !venueMapCache) {
-          console.log('[UA-RPP] Filter enabled but cache not built - showing all');
         }
 
         const visible = lastFeatures.filter(feat => {
@@ -1344,7 +1330,6 @@
           const street = segment.primaryStreetId ? wmeSDK.DataModel.Streets.getById({ streetId: segment.primaryStreetId }) : null;
           const cityId = street?.cityId;
           const city = cityId ? wmeSDK.DataModel.Cities.getById({ cityId })?.name : null;
-          console.log('[UA-RPP] Selected city:', city, 'cityId:', cityId);
 
           // Compute bounding box of selected segments to get center
           let minLon = Infinity, maxLon = -Infinity;
@@ -1392,7 +1377,6 @@
               }
 
               const { features: apiFeatures, streets: newStreets, streetNames: newStreetNames } = apiResult;
-              console.log('[UA-RPP] API returned', apiFeatures.length, 'features');
               streets = newStreets;
               streetNames = newStreetNames;
 
