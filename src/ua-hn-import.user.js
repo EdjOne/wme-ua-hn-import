@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.46
+// @version 1.7.47
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -658,7 +658,7 @@
           </div>
           <div id="hn-status" style="margin-top:10px;font-size:12px;color:#666;line-height:1.4;">
             <b>Інструкція</b><br/>
-            1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>
+            1) Відкрийте потрібну область на карті • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>
           </div>
           <div style="margin-top:12px;padding-top:6px;border-top:1px solid #eee;width:100%;box-sizing:border-box;">
             <div style="background:#005bbb;color:#fff;padding:8px;font-size:25px;text-align:center;width:100%;box-sizing:border-box;">made in</div>
@@ -798,52 +798,25 @@
 
       function updateLayer(statusDiv, loadId) {
         return new Promise((resolve) => {
-          const selectedSegments = getSelectedSegments();
-          if (selectedSegments.length === 0) {
-            toast('Спочатку виберіть сегмент.', 'warning');
-            statusDiv.textContent = 'Не вибрано сегмент.';
-            resolve();
-            return;
-          }
-
           loading.style.display = null;
 
-          // Get city from selected segment
-          const segment = selectedSegments[0];
-          const street = segment.primaryStreetId ? wmeSDK.DataModel.Streets.getById({ streetId: segment.primaryStreetId }) : null;
-          const cityId = street?.cityId;
-          const city = cityId ? wmeSDK.DataModel.Cities.getById({ cityId })?.name : null;
-
-          // Compute bounding box of selected segments to get center
-          let minLon = Infinity, maxLon = -Infinity;
-          let minLat = Infinity, maxLat = -Infinity;
-          selectedSegments.forEach(seg => {
-            const coords = seg.geometry?.coordinates;
-            if (!Array.isArray(coords)) return;
-            coords.forEach(pt => {
-              const lon = pt[0], lat = pt[1];
-              if (lon < minLon) minLon = lon;
-              if (lon > maxLon) maxLon = lon;
-              if (lat < minLat) minLat = lat;
-              if (lat > maxLat) maxLat = lat;
-            });
-          });
-
-          if (minLon === Infinity) {
+          // Get visible map bounds instead of segment selection
+          const extent = wmeSDK.Map.getMapExtent();
+          if (!extent || !extent.northEast || !extent.southWest) {
             loading.style.display = 'none';
-            statusDiv.textContent = 'Немає геометрії для вибраного сегмента.';
+            statusDiv.textContent = 'Не вдалося отримати межі карти.';
             resolve();
             return;
           }
 
-          // Calculate center of bbox
-          const centerLat = (minLat + maxLat) / 2;
-          const centerLon = (minLon + maxLon) / 2;
+          const centerLat = (extent.northEast.lat + extent.southWest.lat) / 2;
+          const centerLon = (extent.northEast.lng + extent.southWest.lng) / 2;
           const zoom = wmeSDK.Map.getZoomLevel();
-          // Radius based on zoom (same as UA-address-data script)
-          let radius = 400;
-          if (zoom === 16) radius = 1000;
-          else if (zoom === 17) radius = 600;
+
+          // Radius based on visible extent + user buffer
+          const latRadius = (extent.northEast.lat - extent.southWest.lat) / 2 * 111000; // rough meters per degree
+          const lonRadius = (extent.northEast.lng - extent.southWest.lng) / 2 * 111000;
+          let radius = Math.max(latRadius, lonRadius) * 0.6; // 60% of half-diagonal
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
 
