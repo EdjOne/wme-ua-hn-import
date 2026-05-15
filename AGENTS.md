@@ -90,5 +90,6 @@ python3 wme_bot.py --api
 - **v1.7.48**: Виправлено getMapExtent (_northEast/_southWest), додано дебаг радіусу
 - **v1.7.49**: Оновлено для Tampermonkey
 - **v1.7.50**: Виправлено ReferenceError (selectedSegments)
+- **v1.7.51**: Додано "Не створювати дублікати" (перевірка houseNumber + streetId)
 
 P.S. Все HN заменены на RPP (UA-RPP).

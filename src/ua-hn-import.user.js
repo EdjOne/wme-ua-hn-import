@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.50
+// @version 1.7.51
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -72,7 +72,9 @@
     getLayerVisible() { return localStorage.getItem('qhnua-layer-visible') === '1'; },
     setLayerVisible(v){ localStorage.setItem('qhnua-layer-visible', v ? '1' : '0'); },
     getSelectedOnly() { return localStorage.getItem('qhnua-selected-only') === '1'; },
-    setSelectedOnly(v){ localStorage.setItem('qhnua-selected-only', v ? '1' : '0'); }
+    setSelectedOnly(v){ localStorage.setItem('qhnua-selected-only', v ? '1' : '0'); },
+    getNoDuplicates() { return localStorage.getItem('qhnua-no-duplicates') === '1'; },
+    setNoDuplicates(v){ localStorage.setItem('qhnua-no-duplicates', v ? '1' : '0'); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -86,6 +88,22 @@
       console.info(`[UA-RPP] ${msg}`);
     }
   };
+
+  // Check for existing venue with same houseNumber + streetId (RPP duplicate detection)
+  function hasDuplicate(houseNumber, streetId, isResidential = true) {
+    const venues = wmeSDK.DataModel.Venues.getAll();
+    for (const venue of venues) {
+      const addr = wmeSDK.DataModel.Venues.getAddress({ venueId: venue.id });
+      if (
+        venue.isResidential === isResidential &&
+        addr?.street?.id === streetId &&
+        addr?.houseNumber === houseNumber
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   function normalizeStreetName(name) {
     return String(name).toLowerCase().replace(/\s+/g, '_');
@@ -564,6 +582,11 @@
         
         const streetId = nearestStreetId;
 
+        // Check for duplicates before creating
+        if (LS.getNoDuplicates() && hasDuplicate(houseNumber, streetId, true)) {
+          throw new Error('RPP з таким номером вже існує на цій вулиці');
+        }
+
         const geometry = {
           type: 'Point',
           coordinates: [feature.lon, feature.lat]
@@ -651,6 +674,7 @@
           </div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
+            <wz-checkbox id="hn-no-duplicates">Не створювати дублікати</wz-checkbox>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
@@ -703,6 +727,16 @@
         LS.setLayerVisible(!on);
         updateLayerVisibility();
       });
+
+      const chkNoDups = tabPane.querySelector('#hn-no-duplicates');
+      if (chkNoDups) {
+        setChecked(chkNoDups, LS.getNoDuplicates());
+        chkNoDups.addEventListener('click', () => {
+          const on = isChecked(chkNoDups);
+          setChecked(chkNoDups, !on);
+          LS.setNoDuplicates(!on);
+        });
+      }
 
       async function loadSelectedStreet() {
         if (isLoading) return;
