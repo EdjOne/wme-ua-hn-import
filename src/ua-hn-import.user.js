@@ -607,9 +607,6 @@
   // Venues-only: no segment/house number API (RPP are Venues, not House Numbers)
   // Returns Map<number: { set: Set, items: [{num, x, y}] }>
   async function getVenuesInExtentByHouseNumber() {
-    // Return cached result if available
-    if (venueMapCache) return venueMapCache;
-
     const map = new Map();
     const ext = wmeSDK.Map.getMapExtent();
     const [lonMin, latMin, lonMax, latMax] = Array.isArray(ext)
@@ -627,9 +624,6 @@
       const y = venue.geometry.coordinates[1];
       if (x < lonMin || x > lonMax || y < latMin || y > latMax) return;
 
-      // Debug: log venue structure for RPP detection
-      console.debug('[UA-RPP] Venue structure:', { id: venue.id, name: venue.name, houseNumber: venue.houseNumber, address: venue.address, isRPP: venue.isResidential });
-
       // Get house number from venue - RPP can have different structures
       let num = venue.houseNumber || venue.address?.houseNumber;
       // Also check alternative fields used by RPP
@@ -640,11 +634,12 @@
       if (!num) {
         num = venue.residentialAddress?.houseNumber || venue.attributes?.houseNumber || venue.secondaryAttributes?.houseNumber;
       }
-      // Debug: log venues without house number
-      if (!num) {
-        console.debug('[UA-RPP] Venue without houseNumber:', venue.name || venue.id);
-        return;
+      // Try to extract from venue name (e.g., "123 Main St" → "123")
+      if (!num && venue.name) {
+        const match = String(venue.name).match(/^[\d\s/]+[А-ЯІЇЄҐа-яіїєґ]?/);
+        if (match) num = match[0].trim();
       }
+      if (!num) return;
 
       const numRaw = normalizeHouseNumber(num);
       let entry = map.get(numRaw);
@@ -656,7 +651,7 @@
       entry.items.push({ num: numRaw, x, y });
     });
 
-    venueMapCache = map; // Cache for reuse
+    venueMapCache = map;
     return map;
   }
 
@@ -1260,10 +1255,6 @@
       applyFeatureFilter = function () {
         const onlyMissing = chkMissing?.hasAttribute('checked');
 
-        // If onlyMissing enabled but cache not built yet, don't filter (show all)
-        if (onlyMissing && !venueMapCache) {
-        }
-
         const visible = lastFeatures.filter(feat => {
           // Фильтр невалидных координат
           if (typeof feat.lat !== 'number' || typeof feat.lon !== 'number' || isNaN(feat.lat) || isNaN(feat.lon)) return false;
@@ -1394,7 +1385,7 @@
                 const normalizedNum = normalizeHouseNumber(item.number);
                 // Venues-only: check if this number exists nearby (within 10m)
                 let processed = false;
-                const entry = venueMap.get(normalizedNum);
+                const entry = venueMapCache?.get(normalizedNum);
                 if (entry?.items?.length) {
                   for (const venueEntry of entry.items) {
                     const dx = item.lon - venueEntry.x, dy = item.lat - venueEntry.y;
