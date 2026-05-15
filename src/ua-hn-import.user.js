@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.20
+// @version      1.7.21
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -39,6 +39,8 @@
   const SDK_LAYER_NAME = 'qhnua-sdk';
   const MAX_CLICK_DISTANCE_PX = 25;
   const MAX_RPP_CONFLICT_DISTANCE = 10;
+
+  let venueMapCache = null; // Cache for venue map (reset on load/clear)
 
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
 
@@ -605,6 +607,9 @@
   // Venues-only: no segment/house number API (RPP are Venues, not House Numbers)
   // Returns Map<number: { set: Set, items: [{num, x, y}] }>
   async function getVenuesInExtentByHouseNumber() {
+    // Return cached result if available
+    if (venueMapCache) return venueMapCache;
+
     const map = new Map();
     const ext = wmeSDK.Map.getMapExtent();
     const [lonMin, latMin, lonMax, latMax] = Array.isArray(ext)
@@ -652,6 +657,7 @@
       entry.items.push({ num: numRaw, x, y });
     });
 
+    venueMapCache = map; // Cache for reuse
     return map;
   }
 
@@ -1199,6 +1205,7 @@
         streetNames = {};
         currentStreetId = null;
         lastFeatures = [];
+        venueMapCache = null; // Reset venue cache on new load
 
         await updateLayer(statusDiv, myLoadId).catch(err => console.warn('UA-RPP updateLayer:', err));
 
@@ -1229,7 +1236,8 @@
         wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
         setChecked(chkVis, false);
         LS.setLayerVisible(false);
-streets = {};
+        venueMapCache = null; // Invalidate cache on clear
+        streets = {};
         streetNames = {};
         currentStreetId = null;
         lastFeatures = [];
@@ -1240,13 +1248,35 @@ streets = {};
 
       btnClear.addEventListener('click', clearLayer);
 
-      applyFeatureFilter = function () {
+      applyFeatureFilter = async function () {
         console.log('[UA-RPP] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length });
-        const onlyMissing  = chkMissing?.hasAttribute('checked');
+        const onlyMissing = chkMissing?.hasAttribute('checked');
+
+        // Build venue map if checking for missing (uses cache if available)
+        if (onlyMissing && !venueMapCache) {
+          try {
+            venueMapCache = await getVenuesInExtentByHouseNumber();
+          } catch (e) {
+            console.warn('[UA-RPP] Failed to build venue map:', e);
+          }
+        }
+
         const visible = lastFeatures.filter(feat => {
-          if (onlyMissing && feat.processed) return false;
           // Фильтр невалидных координат
           if (typeof feat.lat !== 'number' || typeof feat.lon !== 'number' || isNaN(feat.lat) || isNaN(feat.lon)) return false;
+
+          if (onlyMissing) {
+            // Check if this number already exists on map
+            const entry = venueMapCache?.get(feat.number);
+            if (entry?.items?.length) {
+              for (const v of entry.items) {
+                if (v.x != null && v.y != null) {
+                  const dx = feat.lon - v.x, dy = feat.lat - v.y;
+                  if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) return false;
+                }
+              }
+            }
+          }
           return true;
         });
         if (lastSdkFeatureIds.length) {
