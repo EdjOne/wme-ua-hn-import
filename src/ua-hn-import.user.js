@@ -1172,6 +1172,19 @@
       }
       setChecked(chkSelectedOnly, LS.getSelectedOnly() ? true : false);
 
+      // Checkbox for "Тільки відсутні" - builds cache on enable
+      chkMissing?.addEventListener('click', async () => {
+        const newState = !isChecked(chkMissing);
+        setChecked(chkMissing, newState);
+        LS.setSelectedOnly(newState);
+        if (newState) {
+          venueMapCache = await getVenuesInExtentByHouseNumber();
+        } else {
+          venueMapCache = null;
+        }
+        applyFeatureFilter();
+      });
+
       bufferEl.addEventListener('change', () => {
         const val = Number(bufferEl.value);
         if (!Number.isFinite(val) || val < 0) {
@@ -1187,18 +1200,6 @@
         userWantsLayerVisible = !on;
         LS.setLayerVisible(!on);
         updateLayerVisibility();
-      });
-
-      chkMissing?.addEventListener('click', async () => {
-        const newState = !isChecked(chkMissing);
-        setChecked(chkMissing, newState);
-        LS.setSelectedOnly(newState);
-        if (newState) {
-          venueMapCache = await getVenuesInExtentByHouseNumber();
-        } else {
-          venueMapCache = null;
-        }
-        applyFeatureFilter();
       });
 
       chkSelectedOnly?.addEventListener('click', () => {
@@ -1269,6 +1270,11 @@
       applyFeatureFilter = function () {
         console.log('[UA-RPP] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length });
         const onlyMissing = chkMissing?.hasAttribute('checked');
+
+        // If onlyMissing enabled but cache not built yet, don't filter (show all)
+        if (onlyMissing && !venueMapCache) {
+          console.log('[UA-RPP] Filter enabled but cache not built - showing all');
+        }
 
         const visible = lastFeatures.filter(feat => {
           // Фильтр невалидных координат
