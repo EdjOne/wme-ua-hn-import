@@ -93,5 +93,6 @@ python3 wme_bot.py --api
 - **v1.7.51**: Додано "Не створювати дублікати" (перевірка houseNumber + streetId)
 - **v1.7.52**: Додано поле вводу API ключа Visicom
 - **v1.7.53**: Переключення джерела (select) + поле не password
+- **v1.7.54**: Додано fetchAddressesVisicom (потрібен API ключ)
 
 P.S. Все HN заменены на RPP (UA-RPP).

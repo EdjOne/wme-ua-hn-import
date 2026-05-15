@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.53
+// @version 1.7.54
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -76,7 +76,9 @@
     getNoDuplicates() { return localStorage.getItem('qhnua-no-duplicates') === '1'; },
     setNoDuplicates(v){ localStorage.setItem('qhnua-no-duplicates', v ? '1' : '0'); },
     getVisicomKey()   { return localStorage.getItem('qhnua-visicom-key') || ''; },
-    setVisicomKey(v)  { localStorage.setItem('qhnua-visicom-key', v); }
+    setVisicomKey(v)  { localStorage.setItem('qhnua-visicom-key', v); },
+    getSource()       { return localStorage.getItem('qhnua-source') || 'waze'; },
+    setSource(v)      { localStorage.setItem('qhnua-source', v); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -336,6 +338,56 @@
         },
         ontimeout: function () {
           reject(new Error('Waze API timeout'));
+        }
+      });
+    });
+  }
+
+  // Fetch addresses from Visicom API
+  function fetchAddressesVisicom(bounds) {
+    return new Promise((resolve, reject) => {
+      const apiKey = LS.getVisicomKey();
+      if (!apiKey) {
+        reject(new Error('API ключ Visicom не встановлено'));
+        return;
+      }
+
+      const url = `https://api.visicom.ua/data-api/v2.0/objects?api_key=${apiKey}&types=address&bbox=${bounds.minLon},${bounds.minLat},${bounds.maxLon},${bounds.maxLat}`;
+
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url: url,
+        timeout: 30000,
+        onload: function(response) {
+          try {
+            const data = JSON.parse(response.responseText);
+            const features = [];
+
+            for (const feature of (data.features || [])) {
+              const props = feature.properties || {};
+              const coords = feature.geometry?.coordinates || [];
+
+              if (!props.house_number && !props.name) continue;
+
+              features.push({
+                number: props.house_number || props.name || '',
+                street: props.street_name || '',
+                city: props.city || '',
+                lat: coords[1],
+                lon: coords[0]
+              });
+            }
+
+            resolve({ features, streets: {}, streetNames: {} });
+          } catch (e) {
+            reject(e);
+          }
+        },
+        onerror: function() {
+          reject(new Error('Visicom API error'));
+        },
+        ontimeout: function() {
+          reject(new Error('Visicom API timeout'));
         }
       });
     });
@@ -893,7 +945,15 @@
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
 
-          fetchAddressesWaze(centerLat, centerLon, radius)
+          // Choose data source
+          const source = LS.getSource() || 'waze';
+          const bounds = { minLon: lonMin, minLat: latMin, maxLon: lonMax, maxLat: latMax };
+          
+          const fetchPromise = source === 'visicom' 
+            ? fetchAddressesVisicom(bounds)
+            : fetchAddressesWaze(centerLat, centerLon, radius);
+
+          fetchPromise
             .then(apiResult => {
               // Bail out if user clicked Clear (or started a newer load) while the fetch was in flight
               if (loadId !== currentLoadId) {
