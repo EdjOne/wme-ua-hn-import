@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.26
+// @version      1.7.27
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -614,11 +614,43 @@
       : [ext.lonMin, ext.latMin, ext.lonMax, ext.latMax];
 
     // Get all venues visible on map (RPP are Venues)
-    const venues = wmeSDK.DataModel.Venues.getAll
-      ? wmeSDK.DataModel.Venues.getAll()
-      : (wmeSDK.DataModel.Venues.getVenues ? wmeSDK.DataModel.Venues.getVenues() : []);
+    let venues = [];
+    
+    // Try multiple methods to get venues
+    const tryGetVenues = () => {
+      // Method 1: ObjectGroups with getVenueGroups
+      if (wmeSDK.DataModel.ObjectGroups?.getVenueGroups) {
+        const groups = wmeSDK.DataModel.ObjectGroups.getVenueGroups();
+        groups?.forEach(g => { if (g.venues) venues.push(...g.venues); });
+      }
+      // Method 2: ObjectGroups with getGroups  
+      if (!venues.length && wmeSDK.DataModel.ObjectGroups?.getGroups) {
+        const groups = wmeSDK.DataModel.ObjectGroups.getGroups();
+        groups?.forEach(g => { if (g.objects) venues.push(...g.objects.filter(o => o.objectType === 'venue')); });
+      }
+      // Method 3: Venues.getAll
+      if (!venues.length && wmeSDK.DataModel.Venues?.getAll) {
+        venues = wmeSDK.DataModel.Venues.getAll() || [];
+      }
+      // Method 4: Venues.getVenues
+      if (!venues.length && wmeSDK.DataModel.Venues?.getVenues) {
+        venues = wmeSDK.DataModel.Venues.getVenues() || [];
+      }
+      // Method 5: Map features
+      if (!venues.length && wmeSDK.Map?.getMapFeatures) {
+        venues = wmeSDK.Map.getMapFeatures()?.filter(f => f.type === 'venue') || [];
+      }
+    };
+    tryGetVenues();
+    
+    console.log('[UA-RPP] Venues found:', venues.length);
 
     venues.forEach(venue => {
+      // Debug: log first venue structure (before any filtering)
+      if (map.size === 0) {
+        console.log('[UA-RPP] First venue structure:', { id: venue.id, name: venue.name, address: venue.address, houseNumber: venue.houseNumber, geometry: venue.geometry });
+      }
+
       if (!venue.geometry?.coordinates) return;
       const x = venue.geometry.coordinates[0];
       const y = venue.geometry.coordinates[1];
@@ -634,10 +666,15 @@
       if (!num) {
         num = venue.residentialAddress?.houseNumber || venue.attributes?.houseNumber || venue.secondaryAttributes?.houseNumber;
       }
-      // Try to extract from venue name (e.g., "123 Main St" → "123")
+      // Try to extract from venue name (e.g., "123 Main St" → "123" or "123А")
       if (!num && venue.name) {
         const match = String(venue.name).match(/^[\d\s/]+[А-ЯІЇЄҐа-яіїєґ]?/);
         if (match) num = match[0].trim();
+      }
+      // Also try simple number-only pattern (e.g., "123" in "123 Main St")
+      if (!num && venue.name) {
+        const match = String(venue.name).match(/^[\d\s/]+/);
+        if (match && match[0].trim()) num = match[0].trim();
       }
       if (!num) return;
 
@@ -1164,6 +1201,7 @@
         LS.setSelectedOnly(isEnabling);
         if (isEnabling) {
           venueMapCache = await getVenuesInExtentByHouseNumber();
+          console.log('[UA-RPP] Cache built, size:', venueMapCache?.size);
         } else {
           venueMapCache = null;
         }
@@ -1254,6 +1292,11 @@
 
       applyFeatureFilter = function () {
         const onlyMissing = chkMissing?.hasAttribute('checked');
+
+        // Debug: count venues in cache
+        let venueCount = 0;
+        venueMapCache?.forEach(e => venueCount += e.items.length);
+        if (onlyMissing) console.log('[UA-RPP] Venues in cache:', venueCount);
 
         const visible = lastFeatures.filter(feat => {
           // Фильтр невалидных координат
