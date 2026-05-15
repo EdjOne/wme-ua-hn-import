@@ -1060,6 +1060,9 @@
             <b>Інструкція</b><br/>
             1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>
           </div>
+          <div style="margin-top:12px;padding-top:8px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#666;">
+            UA-RPP v1.7.30 🇺🇦 Made in Ukraine
+          </div>
         </div>
       `;
 
@@ -1393,13 +1396,5 @@ loading.style.display = 'none';
       }
       init();
     });
-  });
-
-  // Made in Ukraine banner
-  const ukraineBanner = document.createElement('div');
-  ukraineBanner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:linear-gradient(90deg,#0057B8 33%,#FFD500 33%,#FFD500 66%,#0057B8 66%);color:#fff;padding:8px 16px;border-radius:4px;font-family:sans-serif;font-size:12px;z-index:99999;box-shadow:0 2px 6px rgba(0,0,0,0.3)';
-  ukraineBanner.innerHTML = '<span style="margin-right:8px;">UA-RPP v1.7.30</span><span>🇺🇦 Made in Ukraine</span>';
-  document.addEventListener('bootstrap.wme', () => {
-    document.body.appendChild(ukraineBanner);
   });
 })();
