@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.60
+// @version 1.7.61
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -15,8 +15,10 @@
 // @match        https://www.waze.com/*
 // @exclude      https://www.waze.com/user/editor*
 // @connect      stat.waze.com.ua
+// @connect      api.visicom.ua
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
+// @grant        GM
 // @license      MIT
 // @noframes
 // ==/UserScript==
