@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.52
+// @version 1.7.53
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -680,11 +680,16 @@
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
-            <span style="color:#0066cc;font-weight:bold;">Джерело: Держреєстр (stat.waze.com.ua)</span>
+            <span style="color:#0066cc;font-weight:bold;">Джерело: 
+              <select id="qhnua-source" style="margin-left:8px;font-size:13px;padding:2px;">
+                <option value="waze">Держреєстр (stat.waze.com.ua)</option>
+                <option value="visicom">Visicom</option>
+              </select>
+            </span>
           </div>
           <div style="margin:6px 0;font-size:12px;">
             <label style="display:block;margin-bottom:4px;">API ключ Visicom (за бажанням):</label>
-            <input id="qhnua-visicom-key" type="password" placeholder="Вставте ключ API" style="width:100%;padding:4px;font-size:12px;border:1px solid #ccc;border-radius:3px;">
+            <input id="qhnua-visicom-key" type="text" placeholder="Вставте ключ API" style="width:100%;padding:4px;font-size:12px;border:1px solid #ccc;border-radius:3px;">
           </div>
           <div id="hn-status" style="margin-top:10px;font-size:12px;color:#666;line-height:1.4;">
             <b>Інструкція</b><br/>
@@ -749,6 +754,14 @@
         visicomKeyEl.value = LS.getVisicomKey();
         visicomKeyEl.addEventListener('change', () => {
           LS.setVisicomKey(visicomKeyEl.value.trim());
+        });
+      }
+
+      const sourceEl = tabPane.querySelector('#qhnua-source');
+      if (sourceEl) {
+        sourceEl.value = LS.getSource();
+        sourceEl.addEventListener('change', () => {
+          LS.setSource(sourceEl.value);
         });
       }
 
