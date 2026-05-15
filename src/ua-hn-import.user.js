@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.59
+// @version 1.7.60
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -357,22 +357,32 @@
       const centerLon = (bounds.minLon + bounds.maxLon) / 2;
       const radius = Math.max(bounds.maxLat - bounds.minLat, bounds.maxLon - bounds.minLon) / 2 * 111000;
 
-      const url = `https://api.visicom.ua/data-api/5.0/uk/geocode.json?key=${apiKey}&near=${centerLon},${centerLat}&categories=adr_address&radius=${Math.round(radius)}&limit=1000`;
-      console.log('[Visicom] Request URL:', url);
+      const url = `https://api.visicom.ua/data-api/5.0/uk/geocode.json`;
+      const params = new URLSearchParams({
+        key: apiKey,
+        near: `${centerLon},${centerLat}`,
+        categories: 'adr_address',
+        radius: Math.round(radius),
+        limit: '1000'
+      }).toString();
 
-      GM_xmlhttpRequest({
+      console.log('[Visicom] Request URL:', url + '?' + params);
+
+      GM.xmlHttpRequest({
         method: 'GET',
-        url: url,
+        url: url + '?' + params,
+        responseType: 'json',
         timeout: 30000,
         onload: function(response) {
           // Check HTTP status
           if (response.status >= 400) {
-            console.error('[Visicom] HTTP error:', response.status, response.responseText?.substring(0, 500));
+            console.error('[Visicom] HTTP error:', response.status, response.responseJSON);
             reject(new Error(`Visicom API error: ${response.status}`));
             return;
           }
           try {
-            const data = JSON.parse(response.responseText);
+            // responseType: 'json' → data в response.response
+            const data = response.response || JSON.parse(response.responseText || '{}');
             const features = [];
 
             for (const feature of (data.features || [])) {
@@ -396,7 +406,7 @@
             console.log('[Visicom] Loaded', features.length, 'addresses');
             resolve({ features, streets: {}, streetNames: {} });
           } catch (e) {
-            console.error('[Visicom] JSON parse error:', e, 'response:', response.responseText?.substring(0, 500));
+            console.error('[Visicom] Parse error:', e, 'response:', response.responseText?.substring(0, 500));
             reject(e);
           }
         },
@@ -753,7 +763,7 @@
             <span style="color:#0066cc;font-weight:bold;">Джерело: 
               <select id="qhnua-source" style="margin-left:8px;font-size:13px;padding:2px;">
                 <option value="waze">Держреєстр (stat.waze.com.ua)</option>
-                <option value="visicom" disabled>Visicom (CORS limit)</option>
+                <option value="visicom">Visicom</option>
               </select>
             </span>
           </div>

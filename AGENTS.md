@@ -100,5 +100,6 @@ python3 wme_bot.py --api
 - **v1.7.57**: Visicom API 5.0 (geocode.json з wme-e50)
 - **v1.7.58**: Додано debug кількості адрес + детальні помилки JSON
 - **v1.7.59**: Visicom вимкнено (CORS limit) — залишив Waze
+- **v1.7.60**: Visicom через GM.xmlHttpRequest з responseType: 'json'
 
 P.S. Все HN заменены на RPP (UA-RPP).
