@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.29
+// @version      1.7.30
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1398,7 +1398,7 @@ loading.style.display = 'none';
   // Made in Ukraine banner
   const ukraineBanner = document.createElement('div');
   ukraineBanner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:linear-gradient(90deg,#0057B8 33%,#FFD500 33%,#FFD500 66%,#0057B8 66%);color:#fff;padding:8px 16px;border-radius:4px;font-family:sans-serif;font-size:12px;z-index:99999;box-shadow:0 2px 6px rgba(0,0,0,0.3)';
-  ukraineBanner.innerHTML = '<span style="margin-right:8px;">UA-RPP v1.7.29</span><span>🇺🇦 Made in Ukraine</span>';
+  ukraineBanner.innerHTML = '<span style="margin-right:8px;">UA-RPP v1.7.30</span><span>🇺🇦 Made in Ukraine</span>';
   document.addEventListener('bootstrap.wme', () => {
     document.body.appendChild(ukraineBanner);
   });
