@@ -801,24 +801,33 @@
           loading.style.display = null;
 
           // Get visible map bounds instead of segment selection
-          const extent = wmeSDK.Map.getMapExtent();
-          // WME SDK format: { _northEast: { lat, lng }, _southWest: { lat, lng } }
-          const ne = extent?._northEast || extent?.northEast;
-          const sw = extent?._southWest || extent?.southWest;
-          if (!ne || !sw) {
+          const ext = wmeSDK.Map.getMapExtent();
+          // WME SDK format can be: [lonMin, latMin, lonMax, latMax] array or { lonMin, latMin, lonMax, latMax }
+          let lonMin, latMin, lonMax, latMax;
+          if (Array.isArray(ext)) {
+            [lonMin, latMin, lonMax, latMax] = ext;
+          } else if (ext) {
+            // Try multiple property name variations
+            lonMin = ext.lonMin ?? ext._southWest?.lng ?? ext.southWest?.lng;
+            latMin = ext.latMin ?? ext._southWest?.lat ?? ext.southWest?.lat;
+            lonMax = ext.lonMax ?? ext._northEast?.lng ?? ext.northEast?.lng;
+            latMax = ext.latMax ?? ext._northEast?.lat ?? ext.northEast?.lat;
+          }
+
+          if (lonMin === undefined || latMin === undefined) {
             loading.style.display = 'none';
             statusDiv.textContent = 'Не вдалося отримати межі карти.';
             resolve();
             return;
           }
 
-          const centerLat = (ne.lat + sw.lat) / 2;
-          const centerLon = (ne.lng + sw.lng) / 2;
+          const centerLat = (latMin + latMax) / 2;
+          const centerLon = (lonMin + lonMax) / 2;
           const zoom = wmeSDK.Map.getZoomLevel();
 
           // Radius based on visible extent + user buffer
-          const latRadius = (ne.lat - sw.lat) / 2 * 111000;
-          const lonRadius = (ne.lng - sw.lng) / 2 * 111000;
+          const latRadius = (latMax - latMin) / 2 * 111000;
+          const lonRadius = (lonMax - lonMin) / 2 * 111000;
           let radius = Math.max(latRadius, lonRadius) * 0.6; // 60% of half-diagonal
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
