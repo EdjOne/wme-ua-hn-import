@@ -1084,10 +1084,20 @@
 
         console.log('[UA-RPP] RPP created:', { venueId, streetId, houseNumber });
 
+        // Add to venue cache so filter recognizes it immediately
+        if (venueMapCache) {
+          const numRaw = String(houseNumber).trim();
+          let entry = venueMapCache.get(numRaw);
+          if (!entry) {
+            entry = { set: new Set([numRaw]), items: [] };
+            venueMapCache.set(numRaw, entry);
+          }
+          entry.items.push({ num: numRaw, x: feature.lon, y: feature.lat });
+        }
+
         feature.userAdded = true;
         feature.processed = true;
         feature.conflict = false;
-        venueMapCache = null; // Invalidate cache so new RPP is recognized
         applyFeatureFilter();
 
         console.log('[UA-RPP] Додано RPP', houseNumber);
@@ -1179,8 +1189,15 @@
         updateLayerVisibility();
       });
 
-      chkMissing?.addEventListener('click', () => {
-        setChecked(chkMissing, !isChecked(chkMissing));
+      chkMissing?.addEventListener('click', async () => {
+        const newState = !isChecked(chkMissing);
+        setChecked(chkMissing, newState);
+        LS.setSelectedOnly(newState);
+        if (newState) {
+          venueMapCache = await getVenuesInExtentByHouseNumber();
+        } else {
+          venueMapCache = null;
+        }
         applyFeatureFilter();
       });
 
@@ -1249,18 +1266,9 @@
 
       btnClear.addEventListener('click', clearLayer);
 
-      applyFeatureFilter = async function () {
+      applyFeatureFilter = function () {
         console.log('[UA-RPP] applyFeatureFilter', { lastFeaturesCount: lastFeatures.length });
         const onlyMissing = chkMissing?.hasAttribute('checked');
-
-        // Build venue map if checking for missing (uses cache if available)
-        if (onlyMissing && !venueMapCache) {
-          try {
-            venueMapCache = await getVenuesInExtentByHouseNumber();
-          } catch (e) {
-            console.warn('[UA-RPP] Failed to build venue map:', e);
-          }
-        }
 
         const visible = lastFeatures.filter(feat => {
           // Фильтр невалидных координат
