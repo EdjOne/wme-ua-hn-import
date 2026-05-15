@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.49
+// @version 1.7.50
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -878,24 +878,7 @@
                 });
               }
 
-              const allStreetIds = new Set();
-              selectedSegments.forEach(seg => {
-                (seg.alternateStreetIds || []).forEach(id => allStreetIds.add(id));
-                if (seg.primaryStreetId) allStreetIds.add(seg.primaryStreetId);
-              });
-              const selectedNames = [...allStreetIds]
-                .map(id => wmeSDK.DataModel.Streets.getById({ streetId: id })?.name)
-                .filter(Boolean);
-
-              let best = null, bestCount = -1;
-              selectedNames.forEach(name => {
-                const sid = streets[name];
-                if (!sid) return;
-                const count = features.reduce((n,f)=> n + (f.street === sid ? 1 : 0), 0);
-                if (count > bestCount) { best = sid; bestCount = count; }
-              });
-
-              currentStreetId = best || null;
+              currentStreetId = null;
 
               if (!features.length) {
                 loading.style.display = 'none';
