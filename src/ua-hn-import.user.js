@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.27
+// @version      1.7.28
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -39,8 +39,6 @@
   const SDK_LAYER_NAME = 'qhnua-sdk';
   const MAX_CLICK_DISTANCE_PX = 25;
   const MAX_RPP_CONFLICT_DISTANCE = 0.001; // ~111 meters at 49° latitude
-
-  let venueMapCache = null; // Cache for venue map (reset on load/clear)
 
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
 
@@ -603,94 +601,6 @@
     return false;
   }
 
-  // Get venues/RPPs within map extent, grouped by house number for conflict detection
-  // Venues-only: no segment/house number API (RPP are Venues, not House Numbers)
-  // Returns Map<number: { set: Set, items: [{num, x, y}] }>
-  async function getVenuesInExtentByHouseNumber() {
-    const map = new Map();
-    const ext = wmeSDK.Map.getMapExtent();
-    const [lonMin, latMin, lonMax, latMax] = Array.isArray(ext)
-      ? ext
-      : [ext.lonMin, ext.latMin, ext.lonMax, ext.latMax];
-
-    // Get all venues visible on map (RPP are Venues)
-    let venues = [];
-    
-    // Try multiple methods to get venues
-    const tryGetVenues = () => {
-      // Method 1: ObjectGroups with getVenueGroups
-      if (wmeSDK.DataModel.ObjectGroups?.getVenueGroups) {
-        const groups = wmeSDK.DataModel.ObjectGroups.getVenueGroups();
-        groups?.forEach(g => { if (g.venues) venues.push(...g.venues); });
-      }
-      // Method 2: ObjectGroups with getGroups  
-      if (!venues.length && wmeSDK.DataModel.ObjectGroups?.getGroups) {
-        const groups = wmeSDK.DataModel.ObjectGroups.getGroups();
-        groups?.forEach(g => { if (g.objects) venues.push(...g.objects.filter(o => o.objectType === 'venue')); });
-      }
-      // Method 3: Venues.getAll
-      if (!venues.length && wmeSDK.DataModel.Venues?.getAll) {
-        venues = wmeSDK.DataModel.Venues.getAll() || [];
-      }
-      // Method 4: Venues.getVenues
-      if (!venues.length && wmeSDK.DataModel.Venues?.getVenues) {
-        venues = wmeSDK.DataModel.Venues.getVenues() || [];
-      }
-      // Method 5: Map features
-      if (!venues.length && wmeSDK.Map?.getMapFeatures) {
-        venues = wmeSDK.Map.getMapFeatures()?.filter(f => f.type === 'venue') || [];
-      }
-    };
-    tryGetVenues();
-    
-    console.log('[UA-RPP] Venues found:', venues.length);
-
-    venues.forEach(venue => {
-      // Debug: log first venue structure (before any filtering)
-      if (map.size === 0) {
-        console.log('[UA-RPP] First venue structure:', { id: venue.id, name: venue.name, address: venue.address, houseNumber: venue.houseNumber, geometry: venue.geometry });
-      }
-
-      if (!venue.geometry?.coordinates) return;
-      const x = venue.geometry.coordinates[0];
-      const y = venue.geometry.coordinates[1];
-      if (x < lonMin || x > lonMax || y < latMin || y > latMax) return;
-
-      // Get house number from venue - RPP can have different structures
-      let num = venue.houseNumber || venue.address?.houseNumber;
-      // Also check alternative fields used by RPP
-      if (!num && venue.address) {
-        num = venue.address.house || venue.address.number;
-      }
-      // More RPP formats from WME SDK
-      if (!num) {
-        num = venue.residentialAddress?.houseNumber || venue.attributes?.houseNumber || venue.secondaryAttributes?.houseNumber;
-      }
-      // Try to extract from venue name (e.g., "123 Main St" → "123" or "123А")
-      if (!num && venue.name) {
-        const match = String(venue.name).match(/^[\d\s/]+[А-ЯІЇЄҐа-яіїєґ]?/);
-        if (match) num = match[0].trim();
-      }
-      // Also try simple number-only pattern (e.g., "123" in "123 Main St")
-      if (!num && venue.name) {
-        const match = String(venue.name).match(/^[\d\s/]+/);
-        if (match && match[0].trim()) num = match[0].trim();
-      }
-      if (!num) return;
-
-      const numRaw = normalizeHouseNumber(num);
-      let entry = map.get(numRaw);
-      if (!entry) {
-        entry = { set: new Set(), items: [] };
-        map.set(numRaw, entry);
-      }
-      entry.set.add(numRaw);
-      entry.items.push({ num: numRaw, x, y });
-    });
-
-    venueMapCache = map;
-    return map;
-  }
 
   // Fetch addresses from Waze Ukraine state register (stat.waze.com.ua)
   function fetchAddressesWaze(centerLat, centerLon, radius) {
@@ -823,7 +733,6 @@
     let streetNameSpan = null;
     let currentStreetDiv = null;
 
-    let chkMissing = null;
     let chkSelectedOnly = null;
 
     let applyFeatureFilter = () => {};
@@ -1106,18 +1015,6 @@
           }
         });
 
-
-        // Add to venue cache so filter recognizes it immediately
-        if (venueMapCache) {
-          const numRaw = normalizeHouseNumber(houseNumber);
-          let entry = venueMapCache.get(numRaw);
-          if (!entry) {
-            entry = { set: new Set([numRaw]), items: [] };
-            venueMapCache.set(numRaw, entry);
-          }
-          entry.items.push({ num: numRaw, x: feature.lon, y: feature.lat });
-        }
-
         feature.userAdded = true;
         feature.processed = true;
         feature.conflict = false;
@@ -1156,7 +1053,6 @@
           </div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
-            <wz-checkbox id="qhnua-missing">Тільки відсутні</wz-checkbox>
             <wz-checkbox id="qhnua-selected-only">Тільки обрані</wz-checkbox>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
@@ -1174,7 +1070,6 @@
       const btnLoadLabel = tabPane.querySelector('#hn-load-label');
       const btnClear     = tabPane.querySelector('#hn-clear');
       const chkVis = tabPane.querySelector('#hn-toggle');
-      chkMissing = tabPane.querySelector('#qhnua-missing');
       chkSelectedOnly = tabPane.querySelector('#qhnua-selected-only');
       const bufferEl   = tabPane.querySelector('#qhnua-buffer');
       const statusDiv  = tabPane.querySelector('#hn-status');
@@ -1193,20 +1088,6 @@
         updateLayerVisibility();
       }
       setChecked(chkSelectedOnly, LS.getSelectedOnly() ? true : false);
-
-      // Checkbox for "Тільки відсутні" - builds cache on enable
-      chkMissing?.addEventListener('click', async () => {
-        const isEnabling = !isChecked(chkMissing);
-        setChecked(chkMissing, isEnabling);
-        LS.setSelectedOnly(isEnabling);
-        if (isEnabling) {
-          venueMapCache = await getVenuesInExtentByHouseNumber();
-          console.log('[UA-RPP] Cache built, size:', venueMapCache?.size);
-        } else {
-          venueMapCache = null;
-        }
-        applyFeatureFilter();
-      });
 
       bufferEl.addEventListener('change', () => {
         const val = Number(bufferEl.value);
@@ -1247,7 +1128,6 @@
         streetNames = {};
         currentStreetId = null;
         lastFeatures = [];
-        venueMapCache = null; // Reset venue cache on new load
 
         await updateLayer(statusDiv, myLoadId).catch(err => console.warn('UA-RPP updateLayer:', err));
 
@@ -1278,7 +1158,6 @@
         wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
         setChecked(chkVis, false);
         LS.setLayerVisible(false);
-        venueMapCache = null; // Invalidate cache on clear
         streets = {};
         streetNames = {};
         currentStreetId = null;
@@ -1291,29 +1170,11 @@
       btnClear.addEventListener('click', clearLayer);
 
       applyFeatureFilter = function () {
-        const onlyMissing = chkMissing?.hasAttribute('checked');
-
-        // Debug: count venues in cache
-        let venueCount = 0;
-        venueMapCache?.forEach(e => venueCount += e.items.length);
-        if (onlyMissing) console.log('[UA-RPP] Venues in cache:', venueCount);
+        const onlySelected = chkSelectedOnly?.hasAttribute('checked');
 
         const visible = lastFeatures.filter(feat => {
-          // Фильтр невалидных координат
+          if (onlySelected && !feat.isSelectedStreet) return false;
           if (typeof feat.lat !== 'number' || typeof feat.lon !== 'number' || isNaN(feat.lat) || isNaN(feat.lon)) return false;
-
-          if (onlyMissing) {
-            // Check if this number already exists on map
-            const entry = venueMapCache?.get(feat.number);
-            if (entry?.items?.length) {
-              for (const v of entry.items) {
-                if (v.x != null && v.y != null) {
-                  const dx = feat.lon - v.x, dy = feat.lat - v.y;
-                  if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) return false;
-                }
-              }
-            }
-          }
           return true;
         });
         if (lastSdkFeatureIds.length) {
@@ -1398,11 +1259,8 @@
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
 
-          Promise.all([
-            fetchAddressesWaze(centerLat, centerLon, radius),
-            getVenuesInExtentByHouseNumber()
-          ])
-            .then(([apiResult, venueMap]) => {
+          fetchAddressesWaze(centerLat, centerLon, radius)
+            .then(apiResult => {
               // Bail out if user clicked Clear (or started a newer load) while the fetch was in flight
               if (loadId !== currentLoadId) {
                 loading.style.display = 'none';
@@ -1426,20 +1284,10 @@
 // TODO: Filter by city using coordinates (nearest city lookup via kadastrova-karta API)
 
                 const normalizedNum = normalizeHouseNumber(item.number);
-                // Venues-only: check if this number exists nearby (within 10m)
-                let processed = false;
-                const entry = venueMapCache?.get(normalizedNum);
-                if (entry?.items?.length) {
-                  for (const venueEntry of entry.items) {
-                    const dx = item.lon - venueEntry.x, dy = item.lat - venueEntry.y;
-                    if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
-                      processed = true;
-                      break;
-                    }
-                  }
-                }
+                const processed = false;
+
                 // Also check for conflicts (different number nearby)
-                const conflict = !processed && hasConflict(normalizedNum, item.lon, item.lat, entry);
+                const conflict = hasConflict(normalizedNum, item.lon, item.lat, null);
 
                 // Create unique key: number + street only (same address cannot appear twice on one street)
                 // Deduplication persists across reloads until Clear is clicked
