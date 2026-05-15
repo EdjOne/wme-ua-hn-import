@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.24
+// @version      1.7.25
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -38,7 +38,7 @@
   let wmeSDK;
   const SDK_LAYER_NAME = 'qhnua-sdk';
   const MAX_CLICK_DISTANCE_PX = 25;
-  const MAX_RPP_CONFLICT_DISTANCE = 0.0001; // ~10 meters at 49° latitude
+  const MAX_RPP_CONFLICT_DISTANCE = 0.001; // ~111 meters at 49° latitude
 
   let venueMapCache = null; // Cache for venue map (reset on load/clear)
 
@@ -1285,17 +1285,11 @@
           if (onlyMissing) {
             // Check if this number already exists on map
             const entry = venueMapCache?.get(feat.number);
-            console.log('[UA-RPP] Filter check:', { number: feat.number, found: !!entry, items: entry?.items?.length });
             if (entry?.items?.length) {
               for (const v of entry.items) {
-                console.log('[UA-RPP] Comparing:', { feat: { lon: feat.lon, lat: feat.lat }, venue: { x: v.x, y: v.y } });
                 if (v.x != null && v.y != null) {
                   const dx = feat.lon - v.x, dy = feat.lat - v.y;
-                  const dist = Math.sqrt(dx * dx + dy * dy);
-                  if (dist <= MAX_RPP_CONFLICT_DISTANCE) {
-                    console.log('[UA-RPP] Hiding - too close:', dist);
-                    return false;
-                  }
+                  if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) return false;
                 }
               }
             }
