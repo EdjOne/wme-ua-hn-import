@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.19
+// @version      1.7.20
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1268,42 +1268,6 @@ streets = {};
         lastSdkFeatureIds = visibleSdk.map(f => f.id);
       };
 
-      async function recalculateFeatureStates() {
-        if (!lastFeatures.length) return;
-
-        const venueMap = await getVenuesInExtentByHouseNumber();
-
-        lastFeatures.forEach(feat => {
-          const { number: hn, lon, lat } = feat;
-          if (!hn || lon == null || lat == null) return;
-
-          // Venues-only: check by house number
-          const entry = venueMap.get(hn);
-
-          // Check if same number exists nearby
-          let sameNumberNearby = false;
-          if (entry?.items?.length) {
-            for (const it of entry.items) {
-              if (it.x != null && it.y != null) {
-                const dx = lon - it.x, dy = lat - it.y;
-                if (dx * dx + dy * dy <= MAX_RPP_CONFLICT_DISTANCE * MAX_RPP_CONFLICT_DISTANCE) {
-                  sameNumberNearby = true;
-                  break;
-                }
-              }
-            }
-          }
-
-          const processed = sameNumberNearby || feat.userAdded === true;
-          const conflict = !processed && hasConflict(hn, lon, lat, entry);
-
-          feat.processed = processed;
-          feat.conflict = conflict;
-        });
-
-        applyFeatureFilter();
-      }
-
       // Register keyboard shortcuts
       ['qhnua-load', 'qhnua-clear'].forEach(id => {
         try { wmeSDK.Shortcuts.deleteShortcut({ shortcutId: id }); } catch (_) {}
@@ -1477,14 +1441,9 @@ streets = {};
               setChecked(chkVis, true);
               LS.setLayerVisible(true);
 
-              loading.style.display = 'none';
-              const processedCount = features.filter(f => f.processed).length;
-              console.log('[UA-RPP] processedCount:', processedCount, '/', features.length, 'Venue entries:', venueMap.size);
+loading.style.display = 'none';
               statusDiv.innerHTML = `Завантажено ${features.length} адрес.<br/>` +
-                `<b>Клікніть на номер на карті, щоб додати!</b><br/>` +
-                `<span style="font-size:11px;color:#666;">` +
-                `${processedCount} вже в WME` +
-                `</span>`;
+                `<b>Клікніть на номер на карті, щоб додати!</b>`;
               resolve();
             })
             .catch(err => {
