@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.35
+// @version      1.7.36
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1042,7 +1042,7 @@
       tabPane.innerHTML = `
         <div id="qhnua-pane" style="padding:10px;">
           <div style="margin-bottom:8px;font-size:12px;color:#666;">
-            <span style="font-weight:bold;color:#333;">UA-RPP</span> v1.7.35
+            <a href="https://github.com/EdjOne/wme-ua-hn-import" target="_blank" style="color:#333;text-decoration:none;"><span style="font-weight:bold;">UA-RPP</span> v1.7.35</a>
           </div>
           <h2 style="margin-top:0;">Швидкий імпорт <span style="background:linear-gradient(to bottom,#005BBB 0 50%,#FFD500 50% 100%);background-size:16px 16px;height:16px;width:16px;display:inline-block;vertical-align:middle;margin-left:4px;border:1px solid #ccc;"></span></h2>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px 0;">
