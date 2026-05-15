@@ -647,7 +647,7 @@
         return;
       }
 
-      const numRaw = String(num).trim();
+      const numRaw = normalizeHouseNumber(num);
       let entry = map.get(numRaw);
       if (!entry) {
         entry = { set: new Set(), items: [] };
@@ -1086,7 +1086,7 @@
 
         // Add to venue cache so filter recognizes it immediately
         if (venueMapCache) {
-          const numRaw = String(houseNumber).trim();
+          const numRaw = normalizeHouseNumber(houseNumber);
           let entry = venueMapCache.get(numRaw);
           if (!entry) {
             entry = { set: new Set([numRaw]), items: [] };
@@ -1174,11 +1174,13 @@
 
       // Checkbox for "Тільки відсутні" - builds cache on enable
       chkMissing?.addEventListener('click', async () => {
-        const newState = !isChecked(chkMissing);
-        setChecked(chkMissing, newState);
-        LS.setSelectedOnly(newState);
-        if (newState) {
+        const isEnabling = !isChecked(chkMissing);
+        setChecked(chkMissing, isEnabling);
+        LS.setSelectedOnly(isEnabling);
+        if (isEnabling) {
+          console.log('[UA-RPP] Building venue cache for missing filter...');
           venueMapCache = await getVenuesInExtentByHouseNumber();
+          console.log('[UA-RPP] Cache built:', venueMapCache ? venueMapCache.size + ' entries' : 'null');
         } else {
           venueMapCache = null;
         }
