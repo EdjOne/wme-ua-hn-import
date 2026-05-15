@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UA-RPP (Ukrainian Residence Point Places)
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.54
+// @version 1.7.55
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -359,6 +359,12 @@
         url: url,
         timeout: 30000,
         onload: function(response) {
+          // Check HTTP status
+          if (response.status >= 400) {
+            console.error('[Visicom] HTTP error:', response.status, response.responseText);
+            reject(new Error(`Visicom API error: ${response.status}`));
+            return;
+          }
           try {
             const data = JSON.parse(response.responseText);
             const features = [];
@@ -383,7 +389,8 @@
             reject(e);
           }
         },
-        onerror: function() {
+        onerror: function(err) {
+          console.error('[Visicom] onerror:', err, 'response:', response?.status);
           reject(new Error('Visicom API error'));
         },
         ontimeout: function() {
