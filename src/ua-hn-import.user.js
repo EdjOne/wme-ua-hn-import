@@ -74,7 +74,9 @@
     getSelectedOnly() { return localStorage.getItem('qhnua-selected-only') === '1'; },
     setSelectedOnly(v){ localStorage.setItem('qhnua-selected-only', v ? '1' : '0'); },
     getNoDuplicates() { return localStorage.getItem('qhnua-no-duplicates') === '1'; },
-    setNoDuplicates(v){ localStorage.setItem('qhnua-no-duplicates', v ? '1' : '0'); }
+    setNoDuplicates(v){ localStorage.setItem('qhnua-no-duplicates', v ? '1' : '0'); },
+    getVisicomKey()   { return localStorage.getItem('qhnua-visicom-key') || ''; },
+    setVisicomKey(v)  { localStorage.setItem('qhnua-visicom-key', v); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -680,6 +682,10 @@
           <div style="margin:6px 0;font-size:13px;">
             <span style="color:#0066cc;font-weight:bold;">Джерело: Держреєстр (stat.waze.com.ua)</span>
           </div>
+          <div style="margin:6px 0;font-size:12px;">
+            <label style="display:block;margin-bottom:4px;">API ключ Visicom (за бажанням):</label>
+            <input id="qhnua-visicom-key" type="password" placeholder="Вставте ключ API" style="width:100%;padding:4px;font-size:12px;border:1px solid #ccc;border-radius:3px;">
+          </div>
           <div id="hn-status" style="margin-top:10px;font-size:12px;color:#666;line-height:1.4;">
             <b>Інструкція</b><br/>
             1) Відкрийте потрібну область на карті • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>
@@ -735,6 +741,14 @@
           const on = isChecked(chkNoDups);
           setChecked(chkNoDups, !on);
           LS.setNoDuplicates(!on);
+        });
+      }
+
+      const visicomKeyEl = tabPane.querySelector('#qhnua-visicom-key');
+      if (visicomKeyEl) {
+        visicomKeyEl.value = LS.getVisicomKey();
+        visicomKeyEl.addEventListener('change', () => {
+          LS.setVisicomKey(visicomKeyEl.value.trim());
         });
       }
 
