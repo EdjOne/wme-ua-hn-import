@@ -393,14 +393,16 @@
               });
             }
 
+            console.log('[Visicom] Loaded', features.length, 'addresses');
             resolve({ features, streets: {}, streetNames: {} });
           } catch (e) {
+            console.error('[Visicom] JSON parse error:', e, 'response:', response.responseText?.substring(0, 500));
             reject(e);
           }
         },
         onerror: function(err) {
-          console.error('[Visicom] onerror:', err);
-          reject(new Error('Visicom API error'));
+          console.error('[Visicom] Network error:', err);
+          reject(new Error('Visicom API error: network error'));
         },
         ontimeout: function() {
           reject(new Error('Visicom API timeout'));
