@@ -777,7 +777,7 @@
             </span>
           </div>
           <div style="margin:6px 0;font-size:12px;">
-            <label style="display:block;margin-bottom:4px;">API ключ Visicom (за бажанням):</label>
+            <label style="display:block;margin-bottom:4px;">API ключ Visicom (<a href="https://api.visicom.ua/accounts/forms?page=register" target="_blank" style="color:#0066cc;text-decoration:none;">Отримати тут</a>):</label>
             <input id="qhnua-visicom-key" type="text" placeholder="Вставте ключ API" style="width:100%;padding:4px;font-size:12px;border:1px solid #ccc;border-radius:3px;">
           </div>
           <div id="hn-status" style="margin-top:10px;font-size:12px;color:#666;line-height:1.4;">
