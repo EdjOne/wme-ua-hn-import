@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.20
+// @version      1.8.21
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -602,7 +602,7 @@
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
 
     // Tooltip for hover info
-    const mapContainer = document.querySelector('.ol-viewport') || document.body;
+    const mapContainer = document.querySelector('#map-container, #WazeMap, .ol-viewport, .map-container, canvas') || document.body;
     const tooltipEl = document.createElement('div');
     tooltipEl.id = 'qhnua-tooltip';
     tooltipEl.style.cssText = 'position:fixed;top:0;left:0;transform:translate(0,0);z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
@@ -638,7 +638,7 @@
         const vpRect = mapContainer.getBoundingClientRect();
         const sx = vpRect.left + foundPx.x + 5;
         const sy = vpRect.top + foundPx.y - 35;
-        console.log('Screen pos:', sx, sy, 'vpRect:', vpRect.left, vpRect.top, 'container:', mapContainer.tagName, mapContainer.className, 'ol-vp exists:', !!document.querySelector('.ol-viewport'));
+        console.log('Screen pos:', sx, sy, 'vpRect:', vpRect.left, vpRect.top, 'container:', mapContainer.tagName, mapContainer.id, mapContainer.className);
         tooltipEl.style.transform = `translate(${sx}px, ${sy}px)`;
         tooltipEl.style.display = 'block';
       } else {
