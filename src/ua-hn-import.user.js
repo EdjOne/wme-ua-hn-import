@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.3
+// @version      1.8.4
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -605,8 +605,8 @@
     const mapContainer = document.querySelector('.ol-viewport') || document.body;
     const tooltipEl = document.createElement('div');
     tooltipEl.id = 'qhnua-tooltip';
-    tooltipEl.style.cssText = 'position:fixed;z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
-    document.body.appendChild(tooltipEl);
+    tooltipEl.style.cssText = 'position:absolute;z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
+    mapContainer.appendChild(tooltipEl);
 
     let hoverHideTimer = null;
     function handleMouseMove(evt) {
@@ -631,10 +631,9 @@
         const street = found.street || '';
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
-        console.log('Tooltip:', street, num, x, y);
-        // Position tooltip near cursor (fixed positioning)
-        tooltipEl.style.left = (x + 10) + 'px';
-        tooltipEl.style.top = (y - 35) + 'px';
+        // Position tooltip near cursor (uses cursor x/y since absolute in transformed container)
+        tooltipEl.style.left = (x + 15) + 'px';
+        tooltipEl.style.top = (y - 40) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
