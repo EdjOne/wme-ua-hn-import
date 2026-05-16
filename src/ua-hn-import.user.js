@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.94
+// @version      1.7.95
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -612,8 +612,8 @@
     function handleMouseMove(evt) {
       console.log('MouseMove:', lastFeatures.length, evt.x, evt.y);
       if (!lastFeatures.length) { tooltipEl.style.display = 'none'; return; }
-      const x = evt.x ?? evt.clientX ?? evt.layerX;
-      const y = evt.y ?? evt.clientY ?? evt.layerY;
+      const x = evt.pageX ?? evt.clientX ?? evt.layerX;
+      const y = evt.pageY ?? evt.clientY ?? evt.layerY;
       if (x == null || y == null) return;
 
       let found = null;
