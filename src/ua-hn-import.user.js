@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.15
+// @version      1.8.16
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -608,11 +608,6 @@
     tooltipEl.style.cssText = 'position:fixed;z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
     document.body.appendChild(tooltipEl);
 
-    function viewportToScreen(vx, vy) {
-      const matrix = new DOMMatrix(getComputedStyle(mapContainer).transform);
-      return { x: vx * matrix.a + vy * matrix.c + matrix.e, y: vx * matrix.b + vy * matrix.d + matrix.f };
-    }
-
     let hoverHideTimer = null;
     function handleMouseMove(evt) {
       console.log('MouseMove:', lastFeatures.length, evt.x, evt.y, evt.clientX, evt.clientY);
@@ -639,10 +634,10 @@
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
         console.log('Marker pos:', foundPx.x, foundPx.y);
-        // Position tooltip using screen coordinates (converted from viewport)
-        const sp = viewportToScreen(x, y);
-        tooltipEl.style.left = (sp.x + 15) + 'px';
-        tooltipEl.style.top = (sp.y - 40) + 'px';
+        // Position tooltip using screen coordinates via getBoundingClientRect
+        const vpRect = mapContainer.getBoundingClientRect();
+        tooltipEl.style.left = (vpRect.left + x + 15) + 'px';
+        tooltipEl.style.top = (vpRect.top + y - 40) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
