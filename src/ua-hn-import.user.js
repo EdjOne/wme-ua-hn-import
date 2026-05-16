@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.91
+// @version      1.7.92
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -631,8 +631,16 @@
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
         const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: found.lon, lat: found.lat } });
         console.log('Tooltip pos:', fPx.x, fPx.y, found.street, found.number);
-        tooltipEl.style.left = (fPx.x - 15) + 'px';
-        tooltipEl.style.top = (fPx.y - 45) + 'px';
+        // Try to find the actual marker element
+        let markerEl = document.elementFromPoint(fPx.x, fPx.y);
+        if (markerEl) {
+          const rect = markerEl.getBoundingClientRect();
+          tooltipEl.style.left = (rect.left + window.scrollX - 15) + 'px';
+          tooltipEl.style.top = (rect.top + window.scrollY - 45) + 'px';
+        } else {
+          tooltipEl.style.left = (fPx.x - 15) + 'px';
+          tooltipEl.style.top = (fPx.y - 45) + 'px';
+        }
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
