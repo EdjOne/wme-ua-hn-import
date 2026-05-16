@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.68
+// @version      1.7.69
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
 // @updateURL    https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
-// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHBhdGggZmlsbD0iIzhhMmJlMiIgZD0iTTAgNDhMMCw0OGMwIDExLjYgOS42IDIxLjIgMjIuMiAyMS43bDAuMy0wLjJjLTEuMy0wLjMtOC4xLTEuNS0xMS4yLTIuMmwtMS41IDMuM2MtMS40IDIuMi0yLjYgNC43LTMuNSA3LjItMS4yIDEuOS0xLjcgNC40LTIuNCA3LjYgMS45IDEuMyAzLjkgMi41IDYuMiAzLjcgOC44IDEuOCAxLjggMy45IDIuOSA2LjMgMy43IDkuMS44IDIuNS4xIDUuMSAyLjQgNy42IDIuN2wxLjUtMy40IDEuNS0zLjMgMS41LTN6Ii8+PC9zdmc+
-// @icon64       data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PHBhdGggZmlsbD0iIzhhMmJlMiIgZD0iTTAgNDhMMCw0OGMwIDExLjYgOS42IDIxLjIgMjIuMiAyMS43bDAuMy0wLjJjLTEuMy0wLjMtOC4xLTEuNS0xMS4yLTIuMmwtMS41IDMuM2MtMS40IDIuMi0yLjYgNC43LTMuNSA3LjItMS4yIDEuOS0xLjcgNC40LTIuNCA3LjYgMS45IDEuMyAzLjkgMi41IDYuMiAzLjcgOC44IDEuOCAxLjggMy45IDIuOSA2LjMgMy43IDkuMS44IDIuNS4xIDUuMSAyLjQgNy42IDIuN2wxLjUtMy40IDEuNS0zLjMgMS41LTN6Ii8+PC9zdmc+
+// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHBvbHlnb24gZmlsbD0iIzhBMkJFMiIgcG9pbnRzPSI0OCwwIDAsOTYgOTYsOTYiLz48L3N2Zz4=
+// @icon64       data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHBvbHlnb24gZmlsbD0iIzhBMkJFMiIgcG9pbnRzPSI0OCwwIDAsOTYgOTYsOTYiLz48L3N2Zz4=
 // @match        https://www.waze.com/editor*
 // @match        https://www.waze.com/*/editor*
 // @match        https://beta.waze.com/*
