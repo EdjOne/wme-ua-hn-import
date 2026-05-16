@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.98
+// @version      1.7.99
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -617,13 +617,14 @@
       if (x == null || y == null) return;
 
       let found = null;
+      let foundPx = null;
       for (const f of lastFeatures) {
         if (f.lon == null || f.lat == null) continue;
         const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
         if (!fPx) continue;
         const d = Math.hypot(fPx.x - x, fPx.y - y);
         console.log('Check feature:', f.street, fPx.x, fPx.y, 'dist:', d);
-        if (d <= 30 && d < 200) { found = f; break; }
+        if (d <= 30 && d < 200) { found = f; foundPx = fPx; break; }
       }
 
       if (found) {
@@ -632,9 +633,9 @@
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
         console.log('Found tooltip:', street, num, x, y);
-        // Position tooltip near cursor (simple and reliable)
-        tooltipEl.style.left = (x + 5) + 'px';
-        tooltipEl.style.top = (y - 25) + 'px';
+        // Position tooltip relative to marker pixels
+        tooltipEl.style.left = (foundPx.x + 5) + 'px';
+        tooltipEl.style.top = (foundPx.y - 30) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
