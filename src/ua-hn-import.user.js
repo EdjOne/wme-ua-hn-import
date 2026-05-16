@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.17
+// @version      1.8.18
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -636,7 +636,10 @@
         console.log('Marker pos:', foundPx.x, foundPx.y);
         // Position tooltip at marker (transform uses screen coordinates for position:fixed)
         const vpRect = mapContainer.getBoundingClientRect();
-        tooltipEl.style.transform = `translate(${vpRect.left + foundPx.x + 5}px, ${vpRect.top + foundPx.y - 35}px)`;
+        const sx = vpRect.left + foundPx.x + 5;
+        const sy = vpRect.top + foundPx.y - 35;
+        console.log('Screen pos:', sx, sy, 'vpRect:', vpRect.left, vpRect.top);
+        tooltipEl.style.transform = `translate(${sx}px, ${sy}px)`;
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
