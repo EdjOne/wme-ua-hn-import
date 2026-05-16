@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.10
+// @version      1.8.11
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -603,10 +603,11 @@
 
     // Tooltip for hover info
     const mapContainer = document.querySelector('.ol-viewport') || document.body;
+    const mapRect = mapContainer.getBoundingClientRect();
     const tooltipEl = document.createElement('div');
     tooltipEl.id = 'qhnua-tooltip';
-    tooltipEl.style.cssText = 'position:absolute;top:0;left:0;transform:translate(0,0);z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
-    mapContainer.appendChild(tooltipEl);
+    tooltipEl.style.cssText = 'position:fixed;z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
+    document.body.appendChild(tooltipEl);
 
     let hoverHideTimer = null;
     function handleMouseMove(evt) {
@@ -634,8 +635,9 @@
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
         console.log('Marker pos:', foundPx.x, foundPx.y);
-        // Position tooltip near cursor (marker coordinates are for matching only)
-        tooltipEl.style.transform = `translate(${x + 15}px, ${y - 40}px)`;
+        // Position tooltip near cursor using clientX/Y for fixed positioning
+        tooltipEl.style.left = (cx + 15) + 'px';
+        tooltipEl.style.top = (cy - 40) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
