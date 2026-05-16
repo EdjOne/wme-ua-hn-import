@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.12
+// @version      1.8.13
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -615,8 +615,8 @@
       if (!lastFeatures.length) { tooltipEl.style.display = 'none'; return; }
       const x = evt.x;
       const y = evt.y;
-      const cx = evt.clientX ?? x;
-      const cy = evt.clientY ?? y;
+      const cx = evt.clientX ?? (mapRect.left + x);
+      const cy = evt.clientY ?? (mapRect.top + y);
       if (x == null || y == null) return;
 
       let found = null;
@@ -635,9 +635,9 @@
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
         console.log('Marker pos:', foundPx.x, foundPx.y);
-        // Position tooltip near cursor using clientX/Y for fixed positioning
-        tooltipEl.style.left = (cx + 15) + 'px';
-        tooltipEl.style.top = (cy - 40) + 'px';
+        // Position tooltip using viewport offset + cursor position
+        tooltipEl.style.left = (mapRect.left + cx + 15) + 'px';
+        tooltipEl.style.top = (mapRect.top + cy - 40) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
