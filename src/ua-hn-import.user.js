@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.0
+// @version      1.8.1
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -611,8 +611,8 @@
     let hoverHideTimer = null;
     function handleMouseMove(evt) {
       if (!lastFeatures.length) { tooltipEl.style.display = 'none'; return; }
-      const x = evt.x ?? evt.clientX ?? evt.layerX;
-      const y = evt.y ?? evt.clientY ?? evt.layerY;
+      const x = evt.clientX;
+      const y = evt.clientY;
       if (x == null || y == null) return;
 
       let found = null;
@@ -631,8 +631,8 @@
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
         // Position tooltip near cursor (fixed positioning)
-        tooltipEl.style.left = (x + 5) + 'px';
-        tooltipEl.style.top = (y - 25) + 'px';
+        tooltipEl.style.left = (x + 10) + 'px';
+        tooltipEl.style.top = (y - 35) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
