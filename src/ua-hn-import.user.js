@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.99
+// @version      1.7.100
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -634,8 +634,10 @@
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
         console.log('Found tooltip:', street, num, x, y);
         // Position tooltip relative to marker pixels
-        tooltipEl.style.left = (foundPx.x + 5) + 'px';
-        tooltipEl.style.top = (foundPx.y - 30) + 'px';
+        const markerPt = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: found.lon, lat: found.lat } });
+        // Convert map pixel to viewport coordinates for fixed positioning
+        tooltipEl.style.left = (markerPt.x + 5) + 'px';
+        tooltipEl.style.top = (markerPt.y - 35) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
