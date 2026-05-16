@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.96
+// @version      1.7.97
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -622,6 +622,7 @@
         const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
         if (!fPx) continue;
         const d = Math.hypot(fPx.x - x, fPx.y - y);
+        console.log('Check feature:', f.street, fPx.x, fPx.y, 'dist:', d);
         if (d <= 20 && d < 200) { found = f; break; }
       }
 
