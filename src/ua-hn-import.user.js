@@ -628,8 +628,8 @@
         const street = found.street || '';
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
-        tooltipEl.style.left = (x + 15) + 'px';
-        tooltipEl.style.top = (y + 15) + 'px';
+        tooltipEl.style.left = (x + 8) + 'px';
+        tooltipEl.style.top = (y + 8) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
