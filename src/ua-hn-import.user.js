@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version 1.7.62
+// @version 1.7.63
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -434,6 +434,9 @@
     let userWantsLayerVisible = false;
     let streetNameSpan = null;
     let currentStreetDiv = null;
+    
+    // Log of restriction reasons when RPP cannot be added
+    let restrictionLogs = [];
 
     let applyFeatureFilter = () => {};
 
@@ -729,6 +732,13 @@
       } catch (err) {
         console.error('[UA-RPP] Помилка додавання RPP:', err);
         toast(err.message || 'Помилка додавання RPP', 'error');
+        restrictionLogs.push({ number: houseNumber, reason: err.message });
+        // Update restrictions log display
+        if (restrictionsDiv) {
+          const logHtml = restrictionLogs.map(l => `<div>• ${l.number}: ${l.reason}</div>`).join('');
+          restrictionsDiv.innerHTML = `<b>Не вдалося додати (${restrictionLogs.length}):</b><br/>` + logHtml;
+          restrictionsDiv.style.display = 'block';
+        }
       }
     }
 
@@ -777,6 +787,7 @@
             <b>Інструкція</b><br/>
             1) Відкрийте потрібну область на карті • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>
           </div>
+          <div id="hn-restrictions" style="margin-top:8px;font-size:11px;color:#c00;line-height:1.3;display:none;"></div>
           <div style="margin-top:12px;padding-top:6px;border-top:1px solid #eee;width:100%;box-sizing:border-box;">
             <div style="background:#005bbb;color:#fff;padding:8px;font-size:25px;text-align:center;width:100%;box-sizing:border-box;">made in</div>
             <div style="background:#ffd500;color:#000;padding:8px;font-size:25px;text-align:center;width:100%;box-sizing:border-box;">Ukraine</div>
@@ -790,6 +801,7 @@
       const chkVis = tabPane.querySelector('#hn-toggle');
       const bufferEl   = tabPane.querySelector('#qhnua-buffer');
       const statusDiv  = tabPane.querySelector('#hn-status');
+      const restrictionsDiv = tabPane.querySelector('#hn-restrictions');
 
       currentStreetDiv = tabPane.querySelector('#hn-current-street');
       streetNameSpan = tabPane.querySelector('#hn-street-name');
@@ -888,6 +900,7 @@
         }
         // Clear deduplication cache so reloading shows all addresses
         window.__uaRppSeenFeatures?.clear();
+        restrictionLogs = [];
         userWantsLayerVisible = false;
         wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
         setChecked(chkVis, false);
@@ -897,6 +910,7 @@
         currentStreetId = null;
         lastFeatures = [];
         currentStreetDiv.style.display = 'none';
+        restrictionsDiv.style.display = 'none';
         statusDiv.innerHTML = `<b>Інструкція</b><br/>
           1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>`;
       }
@@ -1064,7 +1078,8 @@
 
 loading.style.display = 'none';
               statusDiv.innerHTML = `Завантажено ${features.length} адрес.<br/>` +
-                `<b>Клікніть на номер на карті, щоб додати!</b>`;
+                `<b>Клікніть на номер на карті, щоб додати!</b>` +
+                (restrictionLogs.length ? `<br/><a href="#" onclick="event.preventDefault();document.getElementById('hn-restrictions').style.display=document.getElementById('hn-restrictions').style.display==='none'?'block':'none';return false;" style="color:#c00;font-size:11px;">Показати лог відхилень (${restrictionLogs.length})</a>` : '');
               resolve();
             })
             .catch(err => {
