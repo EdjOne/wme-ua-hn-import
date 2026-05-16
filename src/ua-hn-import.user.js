@@ -435,8 +435,8 @@
     let streetNameSpan = null;
     let currentStreetDiv = null;
     
-    // Log of restriction reasons when RPP cannot be added
-    let restrictionLogs = [];
+    // Last restriction reason when RPP cannot be added
+    let lastRestriction = null;
 
     let applyFeatureFilter = () => {};
 
@@ -732,12 +732,9 @@
       } catch (err) {
         console.error('[UA-RPP] Помилка додавання RPP:', err);
         toast(err.message || 'Помилка додавання RPP', 'error');
-        restrictionLogs.push({ number: houseNumber, reason: err.message });
-        // Update restrictions log display
+        lastRestriction = { number: houseNumber, reason: err.message };
         if (restrictionsDiv) {
-          const logHtml = restrictionLogs.map(l => `<div>• ${l.number}: ${l.reason}</div>`).join('');
-          restrictionsDiv.innerHTML = `<b>Не вдалося додати (${restrictionLogs.length}):</b><br/>` + logHtml;
-          restrictionsDiv.style.display = 'block';
+          restrictionsDiv.innerHTML = `<i class="fa fa-exclamation-triangle"></i> <b>Помилка:</b> ${houseNumber} — ${err.message}`;
         }
       }
     }
@@ -787,7 +784,7 @@
             <b>Інструкція</b><br/>
             1) Відкрийте потрібну область на карті • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>
           </div>
-          <div id="hn-restrictions" style="margin-top:8px;font-size:11px;color:#c00;line-height:1.3;display:none;"></div>
+          <div id="hn-restrictions" style="margin-top:8px;font-size:11px;color:#c00;line-height:1.3;"></div>
           <div style="margin-top:12px;padding-top:6px;border-top:1px solid #eee;width:100%;box-sizing:border-box;">
             <div style="background:#005bbb;color:#fff;padding:8px;font-size:25px;text-align:center;width:100%;box-sizing:border-box;">made in</div>
             <div style="background:#ffd500;color:#000;padding:8px;font-size:25px;text-align:center;width:100%;box-sizing:border-box;">Ukraine</div>
@@ -900,7 +897,7 @@
         }
         // Clear deduplication cache so reloading shows all addresses
         window.__uaRppSeenFeatures?.clear();
-        restrictionLogs = [];
+        lastRestriction = null;
         userWantsLayerVisible = false;
         wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
         setChecked(chkVis, false);
@@ -910,7 +907,7 @@
         currentStreetId = null;
         lastFeatures = [];
         currentStreetDiv.style.display = 'none';
-        restrictionsDiv.style.display = 'none';
+        restrictionsDiv.innerHTML = '';
         statusDiv.innerHTML = `<b>Інструкція</b><br/>
           1) Вибрати сегмент • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>`;
       }
@@ -1078,8 +1075,7 @@
 
 loading.style.display = 'none';
               statusDiv.innerHTML = `Завантажено ${features.length} адрес.<br/>` +
-                `<b>Клікніть на номер на карті, щоб додати!</b>` +
-                (restrictionLogs.length ? `<br/><a href="#" onclick="event.preventDefault();document.getElementById('hn-restrictions').style.display=document.getElementById('hn-restrictions').style.display==='none'?'block':'none';return false;" style="color:#c00;font-size:11px;">Показати лог відхилень (${restrictionLogs.length})</a>` : '');
+                `<b>Клікніть на номер на карті, щоб додати!</b>`;
               resolve();
             })
             .catch(err => {
