@@ -628,7 +628,7 @@
         const street = found.street || '';
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
-        tooltipEl.style.left = (x + 8) + 'px';
+        tooltipEl.style.right = (window.innerWidth - x + 8) + 'px';
         tooltipEl.style.top = (y + 8) + 'px';
         tooltipEl.style.display = 'block';
       } else {
