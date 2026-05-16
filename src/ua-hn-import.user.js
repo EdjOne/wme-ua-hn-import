@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.69
+// @version      1.7.70
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -601,6 +601,43 @@
 
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
 
+    // Tooltip for hover info
+    const tooltipEl = document.createElement('div');
+    tooltipEl.id = 'qhnua-tooltip';
+    tooltipEl.style.cssText = 'position:absolute;z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
+    document.body.appendChild(tooltipEl);
+
+    let hoverHideTimer = null;
+    function handleMouseMove(evt) {
+      if (!lastFeatures.length) { tooltipEl.style.display = 'none'; return; }
+      const x = evt.x ?? evt.clientX ?? evt.layerX;
+      const y = evt.y ?? evt.clientY ?? evt.layerY;
+      if (x == null || y == null) return;
+
+      let found = null;
+      for (const f of lastFeatures) {
+        if (f.lon == null || f.lat == null) continue;
+        const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
+        if (!fPx) continue;
+        const d = Math.hypot(fPx.x - x, fPx.y - y);
+        if (d <= 20 && d < 200) { found = f; break; }
+      }
+
+      if (found) {
+        const city = found.settlement || '';
+        const street = found.street || '';
+        const num = found.number || '';
+        tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
+        tooltipEl.style.left = (x + 15) + 'px';
+        tooltipEl.style.top = (y + 15) + 'px';
+        tooltipEl.style.display = 'block';
+      } else {
+        tooltipEl.style.display = 'none';
+      }
+    }
+
+    wmeSDK.Events.on({ eventName: 'wme-map-mouse-move', eventHandler: handleMouseMove });
+
     function onFeatureClick(feature) {
       if (feature.processed) return;
       if (typeof feature.lat !== 'number' || typeof feature.lon !== 'number' || isNaN(feature.lat) || isNaN(feature.lon)) {
@@ -929,6 +966,7 @@
           properties: {
             number: feat.number,
             street: feat.street,
+            city: feat.settlement || '',
             processed: feat.processed,
             conflict: feat.conflict,
             isSelectedStreet: feat.street === currentStreetId
