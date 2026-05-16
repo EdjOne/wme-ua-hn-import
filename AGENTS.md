@@ -102,6 +102,6 @@ python3 wme_bot.py --api
 - **v1.7.59**: Visicom вимкнено (CORS limit) — залишив Waze
 - **v1.7.60**: Visicom через GM.xmlHttpRequest з responseType: 'json'
 - **v1.7.61**: Додано @connect api.visicom.ua, @grant GM ✅ Visicom працює!
-- **v1.7.62**: @icon/@icon64 → base64 data URI, @name → WME UA-RPP, @author → EdjOne, Sapozhnik
+- **v1.7.62**: @icon/@icon64 → base64 data URI, @name → WME UA-RPP, @author → EdjOne, Sapozhnik, Hermes Agent AI
 
 P.S. Все HN заменены на RPP (UA-RPP).
