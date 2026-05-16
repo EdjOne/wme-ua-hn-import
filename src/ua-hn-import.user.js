@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.100
+// @version      1.8.0
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -605,12 +605,11 @@
     const mapContainer = document.querySelector('.ol-viewport') || document.body;
     const tooltipEl = document.createElement('div');
     tooltipEl.id = 'qhnua-tooltip';
-    tooltipEl.style.cssText = 'position:absolute;z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
+    tooltipEl.style.cssText = 'position:fixed;z-index:10000;background:rgba(0,0,0,0.85);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;display:none;';
     document.body.appendChild(tooltipEl);
 
     let hoverHideTimer = null;
     function handleMouseMove(evt) {
-      console.log('MouseMove:', lastFeatures.length, evt.x, evt.y, evt.pageX, evt.pageY);
       if (!lastFeatures.length) { tooltipEl.style.display = 'none'; return; }
       const x = evt.x ?? evt.clientX ?? evt.layerX;
       const y = evt.y ?? evt.clientY ?? evt.layerY;
@@ -623,7 +622,6 @@
         const fPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
         if (!fPx) continue;
         const d = Math.hypot(fPx.x - x, fPx.y - y);
-        console.log('Check feature:', f.street, fPx.x, fPx.y, 'dist:', d);
         if (d <= 30 && d < 200) { found = f; foundPx = fPx; break; }
       }
 
@@ -632,12 +630,9 @@
         const street = found.street || '';
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
-        console.log('Found tooltip:', street, num, x, y);
-        // Position tooltip relative to marker pixels
-        const markerPt = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: found.lon, lat: found.lat } });
-        // Convert map pixel to viewport coordinates for fixed positioning
-        tooltipEl.style.left = (markerPt.x + 5) + 'px';
-        tooltipEl.style.top = (markerPt.y - 35) + 'px';
+        // Position tooltip near cursor (fixed positioning)
+        tooltipEl.style.left = (x + 5) + 'px';
+        tooltipEl.style.top = (y - 25) + 'px';
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
