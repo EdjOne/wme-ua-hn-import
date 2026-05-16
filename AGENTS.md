@@ -104,5 +104,6 @@ python3 wme_bot.py --api
 - **v1.7.61**: Додано @connect api.visicom.ua, @grant GM ✅ Visicom працює!
 - **v1.7.62**: @icon/@icon64 → base64 data URI, @name → WME UA-RPP, @author → EdjOne, Sapozhnik, Hermes Agent AI
 - **v1.7.63**: Лог відхилень RPP — відображається одразу після інструкції (остання помилка: сегмент без назви/далеко/дубль)
+- **v1.7.64**: Клікабельне посилання "Отримати тут" для API ключа Visicom
 
 P.S. Все HN заменены на RPP (UA-RPP).
