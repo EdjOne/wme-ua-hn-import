@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.21
+// @version      1.8.22
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -610,7 +610,6 @@
 
     let hoverHideTimer = null;
     function handleMouseMove(evt) {
-      console.log('MouseMove:', lastFeatures.length, evt.x, evt.y, evt.clientX, evt.clientY);
       if (!lastFeatures.length) { tooltipEl.style.display = 'none'; return; }
       const x = evt.x;
       const y = evt.y;
@@ -633,12 +632,10 @@
         const street = found.street || '';
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
-        console.log('Marker pos:', foundPx.x, foundPx.y);
         // Position tooltip at marker (transform uses screen coordinates for position:fixed)
         const vpRect = mapContainer.getBoundingClientRect();
-        const sx = vpRect.left + foundPx.x + 5;
-        const sy = vpRect.top + foundPx.y - 35;
-        console.log('Screen pos:', sx, sy, 'vpRect:', vpRect.left, vpRect.top, 'container:', mapContainer.tagName, mapContainer.id, mapContainer.className);
+        const sx = vpRect.left + foundPx.x + 15;
+        const sy = vpRect.top + foundPx.y - 45;
         tooltipEl.style.transform = `translate(${sx}px, ${sy}px)`;
         tooltipEl.style.display = 'block';
       } else {
