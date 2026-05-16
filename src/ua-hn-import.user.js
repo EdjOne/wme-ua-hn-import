@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.8
+// @version      1.8.9
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -634,8 +634,8 @@
         const num = found.number || '';
         tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
         console.log('Marker pos:', foundPx.x, foundPx.y);
-        // Position tooltip above marker using its pixel coordinates
-        tooltipEl.style.transform = `translate(${foundPx.x + 5}px, ${foundPx.y - 40}px)`;
+        // Position tooltip near cursor (marker coordinates are for matching only)
+        tooltipEl.style.transform = `translate(${x + 15}px, ${y - 40}px)`;
         tooltipEl.style.display = 'block';
       } else {
         tooltipEl.style.display = 'none';
