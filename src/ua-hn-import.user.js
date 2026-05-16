@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.7.97
+// @version      1.7.98
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -610,10 +610,10 @@
 
     let hoverHideTimer = null;
     function handleMouseMove(evt) {
-      console.log('MouseMove:', lastFeatures.length, evt.x, evt.y);
+      console.log('MouseMove:', lastFeatures.length, evt.x, evt.y, evt.pageX, evt.pageY);
       if (!lastFeatures.length) { tooltipEl.style.display = 'none'; return; }
-      const x = evt.pageX ?? evt.clientX ?? evt.layerX;
-      const y = evt.pageY ?? evt.clientY ?? evt.layerY;
+      const x = evt.x ?? evt.clientX ?? evt.layerX;
+      const y = evt.y ?? evt.clientY ?? evt.layerY;
       if (x == null || y == null) return;
 
       let found = null;
@@ -623,7 +623,7 @@
         if (!fPx) continue;
         const d = Math.hypot(fPx.x - x, fPx.y - y);
         console.log('Check feature:', f.street, fPx.x, fPx.y, 'dist:', d);
-        if (d <= 20 && d < 200) { found = f; break; }
+        if (d <= 30 && d < 200) { found = f; break; }
       }
 
       if (found) {
