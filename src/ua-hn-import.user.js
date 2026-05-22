@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.23
+// @version      1.8.24
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -16,6 +16,7 @@
 // @exclude      https://www.waze.com/user/editor*
 // @connect      stat.waze.com.ua
 // @connect      api.visicom.ua
+// @connect      overpass-api.de
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM
@@ -43,6 +44,10 @@
   const MAX_RPP_CONFLICT_DISTANCE = 0.001; // ~111 meters at 49° latitude
 
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
+  const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
+  const OVERPASS_TIMEOUT = 60000;
+
+
 
   // Common Ukrainian street name abbreviations
   const ABBREVIATIONS = {
@@ -420,6 +425,91 @@
         },
         ontimeout: function() {
           reject(new Error('Visicom API timeout'));
+        }
+      });
+    });
+  }
+
+  // Fetch addresses from OSM Overpass API
+  function fetchAddressesOSM(centerLat, centerLon, radius) {
+    return new Promise((resolve, reject) => {
+      const query = `
+        [out:json][timeout:60];
+        (
+          node["addr:housenumber"](around:${Math.round(radius)},${centerLat},${centerLon});
+          way["addr:housenumber"](around:${Math.round(radius)},${centerLat},${centerLon});
+        );
+        out center;
+      `;
+
+      GM_xmlhttpRequest({
+        method: 'POST',
+        url: OVERPASS_API,
+        timeout: OVERPASS_TIMEOUT,
+        data: 'data=' + encodeURIComponent(query),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        onload: function (response) {
+          try {
+            const data = JSON.parse(response.responseText);
+
+            if (!data.elements || data.elements.length === 0) {
+              resolve({ features: [], streets: {}, streetNames: {} });
+              return;
+            }
+
+            const features = [];
+            const streetNames = {};
+            const streets = {};
+
+            for (const el of data.elements) {
+              const tags = el.tags || {};
+              const street = tags['addr:street'] || tags['addr:full'];
+              const houseNumber = tags['addr:housenumber'];
+
+              if (!houseNumber || !street) continue;
+
+              // Get coordinates (way has center, node has lat/lon)
+              let lat, lon;
+              if (el.type === 'way' && el.center) {
+                lat = el.center.lat;
+                lon = el.center.lon;
+              } else {
+                lat = el.lat;
+                lon = el.lon;
+              }
+
+              if (lat == null || lon == null) continue;
+
+              const streetId = normalizeStreetName(street);
+              if (!streets[street]) {
+                streets[street] = streetId;
+                streetNames[streetId] = street;
+              }
+
+              features.push({
+                number: String(houseNumber).toLowerCase(),
+                street: streetId,
+                streetRaw: street,
+                houseNumberRaw: houseNumber,
+                lat: lat,
+                lon: lon,
+                city: tags['addr:city'] || '',
+                district: tags['addr:district'] || ''
+              });
+            }
+
+            resolve({ features, streets, streetNames });
+          } catch (err) {
+            reject(err);
+          }
+        },
+        onerror: function (err) {
+          reject(err);
+        },
+        ontimeout: function () {
+          reject(new Error('OSM Overpass API request timed out'));
         }
       });
     });
@@ -839,6 +929,7 @@
               <select id="qhnua-source" style="margin-left:8px;font-size:13px;padding:2px;">
                 <option value="waze">Держреєстр (stat.waze.com.ua)</option>
                 <option value="visicom">Visicom</option>
+                <option value="osm">OSM Overpass</option>
               </select>
             </span>
           </div>
@@ -1069,6 +1160,8 @@
           
           const fetchPromise = source === 'visicom' 
             ? fetchAddressesVisicom(bounds)
+            : source === 'osm'
+            ? fetchAddressesOSM(centerLat, centerLon, radius)
             : fetchAddressesWaze(centerLat, centerLon, radius);
 
           fetchPromise
