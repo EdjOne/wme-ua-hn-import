@@ -16,7 +16,7 @@
 // @exclude      https://www.waze.com/user/editor*
 // @connect      stat.waze.com.ua
 // @connect      api.visicom.ua
-// @connect      overpass-api.de
+// @connect      overpass.kumi.systems
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM
@@ -44,7 +44,7 @@
   const MAX_RPP_CONFLICT_DISTANCE = 0.001; // ~111 meters at 49° latitude
 
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
-  const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
+  const OVERPASS_API = 'https://overpass.kumi.systems/api/interpreter';
   const OVERPASS_TIMEOUT = 60000;
 
 
