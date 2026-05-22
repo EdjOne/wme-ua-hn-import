@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.22
+// @version      1.8.23
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -80,7 +80,9 @@
     getVisicomKey()   { return localStorage.getItem('qhnua-visicom-key') || ''; },
     setVisicomKey(v)  { localStorage.setItem('qhnua-visicom-key', v); },
     getSource()       { return localStorage.getItem('qhnua-source') || 'waze'; },
-    setSource(v)      { localStorage.setItem('qhnua-source', v); }
+    setSource(v)      { localStorage.setItem('qhnua-source', v); },
+    getLockRank2()    { return localStorage.getItem('qhnua-lock-rank2') === '1'; },
+    setLockRank2(v)   { localStorage.setItem('qhnua-lock-rank2', v ? '1' : '0'); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -759,6 +761,25 @@
           }]
         });
 
+        // Lock to level 2 if enabled and user has rank > 0
+        if (LS.getLockRank2() && wmeSDK.State?.getUserInfo) {
+          try {
+            const userInfo = wmeSDK.State.getUserInfo();
+            if (userInfo?.rank > 0) {
+              const venue = wmeSDK.DataModel.Venues.getById({ venueId: String(venueId) });
+              if (venue && venue.lockRank < 1) {
+                wmeSDK.DataModel.Venues.updateVenue({
+                  venueId: String(venueId),
+                  lockRank: 1
+                });
+                console.log('[UA-RPP] Locked venue to level 2:', venueId);
+              }
+            }
+          } catch (e) {
+            console.warn('[UA-RPP] Could not lock venue:', e);
+          }
+        }
+
         // Select the new venue to open edit panel
         wmeSDK.Editing.setSelection({
           selection: {
@@ -810,6 +831,7 @@
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="hn-no-duplicates">Не створювати дублікати</wz-checkbox>
+            <wz-checkbox id="hn-lock-rank2">Заблокувати RPP (рівень 2)</wz-checkbox>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
@@ -881,6 +903,16 @@
           const on = isChecked(chkNoDups);
           setChecked(chkNoDups, !on);
           LS.setNoDuplicates(!on);
+        });
+      }
+
+      const chkLockRank2 = tabPane.querySelector('#hn-lock-rank2');
+      if (chkLockRank2) {
+        setChecked(chkLockRank2, LS.getLockRank2());
+        chkLockRank2.addEventListener('click', () => {
+          const on = isChecked(chkLockRank2);
+          setChecked(chkLockRank2, !on);
+          LS.setLockRank2(!on);
         });
       }
 
