@@ -733,7 +733,10 @@
         const city = found.settlement || '';
         const street = found.street || '';
         const num = found.number || '';
-        tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${street || '—'}</b>${num ? ', ' + num : ''}`;
+        const source = found.source || '';
+        const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
+        const sourceText = sourceLabels[source] || source;
+        tooltipEl.innerHTML = `${city ? city + '<br>' : ''}<b>${sourceText}</b>: ${street || '—'}${num ? ', ' + num : ''}`;
         // Position tooltip at marker (transform uses screen coordinates for position:fixed)
         const vpRect = mapContainer.getBoundingClientRect();
         const sx = vpRect.left + foundPx.x + 15;
@@ -937,7 +940,7 @@
           <div style="margin:6px 0;font-size:13px;">
             <span style="color:#0066cc;font-weight:bold;">Джерела:</span><br/>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze" checked> Waze (зелений)</label>
-            <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-visicom"> Visicom (фіолетовий)</label>
+            <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-visicom"> Visicom (жовтий)</label>
             <label><input type="checkbox" id="qhnua-src-osm"> OSM (оранжевий)</label>
           </div>
           <div style="margin:6px 0;font-size:12px;">
