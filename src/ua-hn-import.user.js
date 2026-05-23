@@ -735,7 +735,7 @@
 
       if (found) {
         const city = found.settlement || '';
-        const street = found.streetRaw || found.street || '';
+        const street = found.streetRaw || '';
         const num = found.houseNumberRaw || found.number || '';
         const source = found.source || '';
         const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
@@ -1254,6 +1254,8 @@
                 features.push({
                   number: normalizedNum,
                   street: item.street,
+                  streetRaw: item.streetRaw || item.street,
+                  houseNumberRaw: item.houseNumberRaw || normalizedNum,
                   processed,
                   conflict,
                   lon: item.lon,
