@@ -114,5 +114,6 @@ python3 wme_bot.py --api
 - **v1.8.22**: Актуальна версія скрипта
 - **v1.8.23**: Додано опцію блокування RPP рівнем 2 після створення
 - **v1.8.25**: Оновлено версію та доопрацьовано функціонал
+- **v1.8.26-1.8.29**: Multi-source loading (Waze/Visicom/OSM checkboxes), colored markers per source
 
 P.S. Все HN заменены на RPP (UA-RPP).
