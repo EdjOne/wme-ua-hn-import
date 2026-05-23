@@ -122,5 +122,6 @@ python3 wme_bot.py --api
 - **v1.8.34**: Fixed tooltip fallback (no more underscores from normalized street field)
 - **v1.8.35**: Tooltip fallback to settlement when streetRaw empty (rural addresses)
 - **v1.8.36**: Load button clears deduplication cache before fetching (refresh works correctly)
+- **v1.8.37**: OSM API - detect XML error responses instead of JSON parse failure
 
 P.S. Все HN заменены на RPP (UA-RPP).
