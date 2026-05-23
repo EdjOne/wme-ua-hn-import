@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.36
+// @version      1.8.37
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -459,7 +459,13 @@
         },
         onload: function (response) {
           try {
-            const data = JSON.parse(response.responseText);
+            // Check for non-JSON (XML error) responses
+            const respText = response.responseText || '';
+            if (respText.trim().startsWith('<?xml') || respText.trim().startsWith('<')) {
+              console.error('[OSM] API returned XML error instead of JSON:', respText.substring(0, 200));
+              throw new Error('OSM API returned error - server overload or invalid query');
+            }
+            const data = JSON.parse(respText);
 
             if (!data.elements || data.elements.length === 0) {
               resolve({ features: [], streets: {}, streetNames: {} });
