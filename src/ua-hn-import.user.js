@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.37
+// @version      1.8.38
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -44,7 +44,10 @@
   const MAX_RPP_CONFLICT_DISTANCE = 0.001; // ~111 meters at 49° latitude
 
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
-  const OVERPASS_API = 'https://overpass.kumi.systems/api/interpreter';
+  const OVERPASS_APIS = [
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass-api.de/api/interpreter'
+  ];
   const OVERPASS_TIMEOUT = 60000;
 
 
@@ -437,7 +440,7 @@
     });
   }
 
-  // Fetch addresses from OSM Overpass API
+// Fetch addresses from OSM Overpass API with fallback servers
   function fetchAddressesOSM(centerLat, centerLon, radius) {
     return new Promise((resolve, reject) => {
       const query = `
@@ -449,83 +452,110 @@
         out center;
       `;
 
-      GM_xmlhttpRequest({
-        method: 'POST',
-        url: OVERPASS_API,
-        timeout: OVERPASS_TIMEOUT,
-        data: 'data=' + encodeURIComponent(query),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        onload: function (response) {
-          try {
-            // Check for non-JSON (XML error) responses
-            const respText = response.responseText || '';
-            if (respText.trim().startsWith('<?xml') || respText.trim().startsWith('<')) {
-              console.error('[OSM] API returned XML error instead of JSON:', respText.substring(0, 200));
-              throw new Error('OSM API returned error - server overload or invalid query');
-            }
-            const data = JSON.parse(respText);
+      // Try each API server in sequence
+      const tryFetch = (apiIndex) => {
+        const apiUrl = OVERPASS_APIS[apiIndex];
+        console.log(`[OSM] Trying server ${apiIndex + 1}/${OVERPASS_APIS.length}:`, apiUrl);
 
-            if (!data.elements || data.elements.length === 0) {
-              resolve({ features: [], streets: {}, streetNames: {} });
-              return;
-            }
+        GM_xmlhttpRequest({
+          method: 'POST',
+          url: apiUrl,
+          timeout: OVERPASS_TIMEOUT,
+          data: 'data=' + encodeURIComponent(query),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          onload: function (response) {
+            try {
+              const respText = response.responseText || '';
+              // Check for non-JSON (XML error) responses
+              if (respText.trim().startsWith('<?xml') || respText.trim().startsWith('<')) {
+                console.warn(`[OSM] Server ${apiIndex + 1} returned XML error, trying next...`);
+                if (apiIndex < OVERPASS_APIS.length - 1) {
+                  tryFetch(apiIndex + 1);
+                } else {
+                  reject(new Error('All OSM servers returned errors - server overload'));
+                }
+                return;
+              }
+              const data = JSON.parse(respText);
 
-            const features = [];
-            const streetNames = {};
-            const streets = {};
+              if (!data.elements || data.elements.length === 0) {
+                resolve({ features: [], streets: {}, streetNames: {} });
+                return;
+              }
 
-            for (const el of data.elements) {
-              const tags = el.tags || {};
-              const street = tags['addr:street'] || tags['addr:full'];
-              const houseNumber = tags['addr:housenumber'];
+              const features = [];
+              const streetNames = {};
+              const streets = {};
 
-              if (!houseNumber || !street) continue;
+              for (const el of data.elements) {
+                const tags = el.tags || {};
+                const street = tags['addr:street'] || tags['addr:full'];
+                const houseNumber = tags['addr:housenumber'];
 
-              // Get coordinates (way has center, node has lat/lon)
-              let lat, lon;
-              if (el.type === 'way' && el.center) {
-                lat = el.center.lat;
-                lon = el.center.lon;
+                if (!houseNumber || !street) continue;
+
+                // Get coordinates (way has center, node has lat/lon)
+                let lat, lon;
+                if (el.type === 'way' && el.center) {
+                  lat = el.center.lat;
+                  lon = el.center.lon;
+                } else {
+                  lat = el.lat;
+                  lon = el.lon;
+                }
+
+                if (lat == null || lon == null) continue;
+
+                const streetId = normalizeStreetName(street);
+                if (!streets[street]) {
+                  streets[street] = streetId;
+                  streetNames[streetId] = street;
+                }
+
+                features.push({
+                  number: String(houseNumber).toLowerCase(),
+                  street: streetId,
+                  streetRaw: street,
+                  houseNumberRaw: String(houseNumber),
+                  lat: lat,
+                  lon: lon,
+                  source: 'osm'
+                });
+              }
+
+              console.log(`[OSM] Loaded ${features.length} addresses from server ${apiIndex + 1}`);
+              resolve({ features, streets, streetNames });
+            } catch (err) {
+              console.error(`[OSM] Server ${apiIndex + 1} error:`, err.message);
+              if (apiIndex < OVERPASS_APIS.length - 1) {
+                tryFetch(apiIndex + 1);
               } else {
-                lat = el.lat;
-                lon = el.lon;
+                reject(err);
               }
-
-              if (lat == null || lon == null) continue;
-
-              const streetId = normalizeStreetName(street);
-              if (!streets[street]) {
-                streets[street] = streetId;
-                streetNames[streetId] = street;
-              }
-
-              features.push({
-                number: String(houseNumber).toLowerCase(),
-                street: streetId,
-                streetRaw: street,
-                houseNumberRaw: houseNumber,
-                lat: lat,
-                lon: lon,
-                city: tags['addr:city'] || '',
-                district: tags['addr:district'] || '',
-                source: 'osm'
-              });
             }
-
-            resolve({ features, streets, streetNames });
-          } catch (err) {
-            reject(err);
+          },
+          onerror: function (err) {
+            console.warn(`[OSM] Server ${apiIndex + 1} network error, trying next...`);
+            if (apiIndex < OVERPASS_APIS.length - 1) {
+              tryFetch(apiIndex + 1);
+            } else {
+              reject(new Error('All OSM servers unavailable'));
+            }
+          },
+          ontimeout: function () {
+            console.warn(`[OSM] Server ${apiIndex + 1} timeout, trying next...`);
+            if (apiIndex < OVERPASS_APIS.length - 1) {
+              tryFetch(apiIndex + 1);
+            } else {
+              reject(new Error('OSM API timeout on all servers'));
+            }
           }
-        },
-        onerror: function (err) {
-          reject(err);
-        },
-        ontimeout: function () {
-          reject(new Error('OSM Overpass API request timed out'));
-        }
-      });
+        });
+      };
+
+      tryFetch(0);
     });
   }
 
