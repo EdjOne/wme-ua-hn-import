@@ -935,13 +935,10 @@
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
-            <span style="color:#0066cc;font-weight:bold;">Джерело: 
-              <select id="qhnua-source" style="margin-left:8px;font-size:13px;padding:2px;">
-                <option value="waze">Держреєстр (stat.waze.com.ua)</option>
-                <option value="visicom">Visicom</option>
-                <option value="osm">OSM Overpass</option>
-              </select>
-            </span>
+            <span style="color:#0066cc;font-weight:bold;">Джерела:</span><br/>
+            <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze" checked> Waze (зелений)</label>
+            <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-visicom"> Visicom (фіолетовий)</label>
+            <label><input type="checkbox" id="qhnua-src-osm"> OSM (оранжевий)</label>
           </div>
           <div style="margin:6px 0;font-size:12px;">
             <label style="display:block;margin-bottom:4px;">API ключ Visicom (<a href="https://api.visicom.ua/accounts/forms?page=register" target="_blank" style="color:#0066cc;text-decoration:none;">Отримати тут</a>):</label>
@@ -1165,28 +1162,45 @@
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
 
-          // Choose data source
-          const source = LS.getSource() || 'waze';
+          // Choose data sources (multi-select via checkboxes)
+          const sources = [];
+          if (document.getElementById('qhnua-src-waze')?.checked) sources.push('waze');
+          if (document.getElementById('qhnua-src-visicom')?.checked) sources.push('visicom');
+          if (document.getElementById('qhnua-src-osm')?.checked) sources.push('osm');
+          if (sources.length === 0) sources.push('waze'); // fallback
+          
           const bounds = { minLon: lonMin, minLat: latMin, maxLon: lonMax, maxLat: latMax };
           
-          const fetchPromise = source === 'visicom' 
-            ? fetchAddressesVisicom(bounds)
-            : source === 'osm'
-            ? fetchAddressesOSM(centerLat, centerLon, radius)
-            : fetchAddressesWaze(centerLat, centerLon, radius);
-
-          fetchPromise
-            .then(apiResult => {
-              // Bail out if user clicked Clear (or started a newer load) while the fetch was in flight
+          // Fetch all selected sources in parallel
+          const fetchPromises = sources.map(src => {
+            if (src === 'visicom') return fetchAddressesVisicom(bounds);
+            if (src === 'osm') return fetchAddressesOSM(centerLat, centerLon, radius);
+            return fetchAddressesWaze(centerLat, centerLon, radius);
+          });
+          
+          Promise.all(fetchPromises)
+            .then(results => {
+              // Bail out if user clicked Clear
               if (loadId !== currentLoadId) {
                 loading.style.display = 'none';
                 resolve();
                 return;
               }
-
-              const { features: apiFeatures, streets: newStreets, streetNames: newStreetNames } = apiResult;
-              streets = newStreets;
-              streetNames = newStreetNames;
+              
+              // Merge results from all sources
+              let allFeatures = [];
+              let allStreets = {};
+              let allStreetNames = {};
+              
+              for (let i = 0; i < results.length; i++) {
+                const apiResult = results[i];
+                allFeatures = allFeatures.concat(apiResult.features || []);
+                Object.assign(allStreets, apiResult.streets || {});
+                Object.assign(allStreetNames, apiResult.streetNames || {});
+              }
+              
+              streets = allStreets;
+              streetNames = allStreetNames;
 
               // Persistent deduplication Set (survives between updateLayer calls)
               // Key: normalized number + rounded coordinates (to filter duplicates at same location)
@@ -1194,7 +1208,7 @@
               const seenFeatures = window.__uaRppSeenFeatures;
 
               const features = [];
-              for (const item of apiFeatures) {
+              for (const item of allFeatures) {
                 if (!item.lat || !item.lon) continue;
 
 // TODO: Filter by city using coordinates (nearest city lookup via kadastrova-karta API)
