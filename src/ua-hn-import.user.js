@@ -333,7 +333,8 @@
                 lat: lat,
                 lon: lon,
                 city: city,
-                district: district
+                district: district,
+                source: 'waze'
               });
             }
 
@@ -408,7 +409,8 @@
                 street: street,
                 city: city,
                 lat: coords[1],
-                lon: coords[0]
+                lon: coords[0],
+                source: 'visicom'
               });
             }
 
@@ -496,7 +498,8 @@
                 lat: lat,
                 lon: lon,
                 city: tags['addr:city'] || '',
-                district: tags['addr:district'] || ''
+                district: tags['addr:district'] || '',
+                source: 'osm'
               });
             }
 
@@ -543,7 +546,14 @@
         getFillColor: ({ feature }) => {
           const p = feature.properties;
           if (p.conflict) return '#ff6666';
-          return p.isSelectedStreet ? '#99ee99' : '#fb9c4f';
+          // Цвета по источнику: OSM-оранж, Visicom-фиолет, Waze-зеленый
+          const colors = {
+            'osm': '#FFA500',
+            'visicom': '#8A2BE2',
+            'waze': '#008000'
+          };
+          const baseColor = colors[p.source] || '#fb9c4f';
+          return p.isSelectedStreet ? '#99ee99' : baseColor;
         },
         getOpacity: ({ feature }) => {
           const p = feature.properties;
@@ -1099,7 +1109,8 @@
             city: feat.settlement || '',
             processed: feat.processed,
             conflict: feat.conflict,
-            isSelectedStreet: feat.street === currentStreetId
+            isSelectedStreet: feat.street === currentStreetId,
+            source: feat.source || LS.getSource()
           }
         }));
         wmeSDK.Map.addFeaturesToLayer({ layerName: SDK_LAYER_NAME, features: visibleSdk });
@@ -1206,7 +1217,8 @@
                   processed,
                   conflict,
                   lon: item.lon,
-                  lat: item.lat
+                  lat: item.lat,
+                  source: item.source || LS.getSource()
                 });
               }
 
