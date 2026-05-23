@@ -4,7 +4,8 @@
 import re
 import urllib.parse
 import json
-from typing import List, Dict, Tuple
+import os
+from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 
 try:
@@ -21,6 +22,16 @@ CITY_CENTERS = {
     'Харьков': (49.9935, 36.2304),
     'Днепр': (48.4647, 35.0462),
 }
+
+# Цвета маркеров для разных источников
+SOURCE_COLORS = {
+    'osm': '#FFA500',      # оранжевый
+    'visicom': '#8A2BE2',  # фиолетовый
+    'waze': '#008000',     # зеленый
+}
+
+# Visicom API key (можно переопределить)
+VISICOM_API_KEY = os.environ.get('VISICOM_API_KEY', '68987d2b47b47cd7cd9e7b9cea518c28')
 
 @dataclass
 class Street:
@@ -72,12 +83,16 @@ def detect_city(text: str) -> str:
             return city
     return ''
 
-def geocode_street(street: str, city: str) -> Tuple[float, float]:
-    """Геокодит улицу через OSM Nominatim с фильтрацией по городу."""
+def geocode_street(street: str, city: str, source: str = 'osm') -> Tuple[float, float, str]:
+    """Геокодит улицу. Возвращает (lat, lon, actual_source)."""
     if not HAS_REQUESTS or not city:
-        return None, None
+        return None, None, 'none'
     
-    # Транслитерация русских названий в украинские
+    # OSM (по умолчанию) - оранжевый
+    return geocode_osm(street, city) + ('osm',)
+
+def geocode_osm(street: str, city: str) -> Tuple[float, float]:
+    """Геокодинг через OSM Nominatim - оранжевый маркер."""
     ru_to_uk = {
         'Канатная': 'Канатна',
         'Маразлиевская': 'Маразлиєвська',
@@ -86,8 +101,6 @@ def geocode_street(street: str, city: str) -> Tuple[float, float]:
     }
     
     uk_name = ru_to_uk.get(street, street)
-    
-    # Украинские названия городов
     city_uk = {'Киев': 'Київ', 'Одесса': 'Одеса'}.get(city, city)
     
     queries = [
@@ -118,17 +131,77 @@ def geocode_street(street: str, city: str) -> Tuple[float, float]:
     
     return None, None
 
-def build_wme_permalink(streets: set, city: str = None, geocode: bool = True) -> Dict:
-    """Создаёт WME permalink с выделенными улицами."""
+def geocode_visicom(street: str, city: str) -> Tuple[float, float]:
+    """Геокодинг через Visicom API - фиолетовый маркер."""
+    if not HAS_REQUESTS or not VISICOM_API_KEY:
+        return None, None
+    
+    city_uk = {'Киев': 'Київ', 'Одесса': 'Одеса'}.get(city, city)
+    
+    try:
+        resp = requests.get(
+            "https://api.visicom.ua/data-api/5.0/uk/geocode.json",
+            params={
+                'key': VISICOM_API_KEY,
+                'near': f"{city_uk}",
+                'categories': 'street',
+                'q': street,
+                'limit': 1
+            },
+            timeout=10
+        )
+        data = resp.json()
+        
+        if data.get('features'):
+            feature = data['features'][0]
+            coords = feature.get('geo_centroid', {}).get('coordinates', [])
+            if coords and len(coords) >= 2:
+                return float(coords[1]), float(coords[0])
+    except Exception:
+        pass
+    
+    return None, None
+
+def geocode_waze(city: str) -> Tuple[float, float]:
+    """Геокодинг через stat.waze.com.ua (Держрестр) - зеленый маркер."""
+    if not HAS_REQUESTS:
+        return None, None
+    
+    city_upper = city.upper()
+    
+    try:
+        resp = requests.get(
+            f"https://stat.waze.com.ua/address_map/address_map.php",
+            params={
+                'lat': CITY_CENTERS.get(city, (48.37, 31.17))[0],
+                'lon': CITY_CENTERS.get(city, (48.37, 31.17))[1],
+                'radius': 500
+            },
+            timeout=10
+        )
+        data = resp.json()
+        
+        if data.get('data', {}).get('polygons'):
+            # Возвращаем центр города как fallback
+            return CITY_CENTERS.get(city, (48.37, 31.17))
+    except Exception:
+        pass
+    
+    return None, None
+
+def build_wme_permalink(streets, city: str = None, geocode: bool = True, 
+                        preferred_source: str = 'osm') -> Dict:
+    """Создаёт WME permalink с маркерами разного цвета."""
     result = {
         'permalink': '',
         'streets': list(streets),
         'city': city or 'Не определён',
-        'geocoded': {}
+        'geocoded': {},
+        'markers': {},
+        'source_colors': SOURCE_COLORS
     }
     
-    # Определяем центр города
-    lat, lon = 48.37, 31.17  # Центр Украины по умолчанию
+    lat, lon = 48.37, 31.17
     city_name = city
     
     if city:
@@ -138,21 +211,37 @@ def build_wme_permalink(streets: set, city: str = None, geocode: bool = True) ->
                 city_name = cname
                 break
     
-    # Геокодим улицы (по желанию)
+    # Геокодим улицы с выбранным источником
     if geocode and HAS_REQUESTS:
         for street in streets:
-            slat, slon = geocode_street(street, city_name)
+            if preferred_source == 'visicom':
+                slat, slon = geocode_visicom(street, city_name)
+                actual_source = 'visicom' if slat else 'osm'
+                if not slat:
+                    slat, slon = geocode_osm(street, city_name)
+            elif preferred_source == 'waze':
+                slat, slon = geocode_waze(city_name)
+                actual_source = 'waze' if slat else 'osm'
+                if not slat:
+                    slat, slon = geocode_osm(street, city_name)
+            else:
+                slat, slon = geocode_osm(street, city_name)
+                actual_source = 'osm' if slat else 'none'
+            
             if slat:
                 result['geocoded'][street] = (slat, slon)
+                result['markers'][street] = {
+                    'lat': slat,
+                    'lon': slon,
+                    'color': SOURCE_COLORS.get(actual_source, '#FFA500'),
+                    'source': actual_source
+                }
     
-    # Если удалось геокодить улицы, центрируем на их середине
     if result['geocoded']:
         avg_lat = sum(v[0] for v in result['geocoded'].values()) / len(result['geocoded'])
         avg_lon = sum(v[1] for v in result['geocoded'].values()) / len(result['geocoded'])
         lat, lon = avg_lat, avg_lon
     
-    # Формируем permalink
-    # WME format: ?zoomLevel=16&lat=XX&lon=YY&env=row
     params = {
         'zoomLevel': 16,
         'lat': round(lat, 6),
