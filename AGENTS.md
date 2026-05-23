@@ -125,6 +125,6 @@ python3 wme_bot.py --api
 - **v1.8.37**: OSM API - detect XML error responses instead of JSON parse failure
 - **v1.8.38**: OSM Overpass API fallback servers (kumi.systems → overpass-api.de) with retry logic
 - **v1.8.39**: Added overpass.openstreetmap.ru as third fallback server
-- **v1.8.40**: OSM radius limited to 500m, timeout reduced to 30s
+- **v1.8.40**: OSM radius limited to 300m, timeout reduced to 30s
 
 P.S. Все HN заменены на RPP (UA-RPP).

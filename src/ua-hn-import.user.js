@@ -1231,9 +1231,10 @@
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
           
-          // OSM needs smaller radius (max 500m) to avoid timeouts
-          if (document.getElementById('qhnua-src-osm')?.checked) {
-            radius = Math.min(radius, 500);
+          // OSM needs smaller radius (max 300m) to avoid timeouts
+          const osmChecked = document.getElementById('qhnua-src-osm')?.checked;
+          if (osmChecked) {
+            radius = Math.min(radius, 300);
           }
 
           // Choose data sources (multi-select via checkboxes)
