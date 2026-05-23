@@ -409,6 +409,8 @@
               features.push({
                 number: props.name || props.house_number || '',
                 street: street,
+                streetRaw: street,
+                houseNumberRaw: props.name || props.house_number || '',
                 city: city,
                 lat: coords[1],
                 lon: coords[0],
@@ -733,8 +735,8 @@
 
       if (found) {
         const city = found.settlement || '';
-        const street = found.street || '';
-        const num = found.number || '';
+        const street = found.streetRaw || found.street || '';
+        const num = found.houseNumberRaw || found.number || '';
         const source = found.source || '';
         const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
         const sourceText = sourceLabels[source] || source;
