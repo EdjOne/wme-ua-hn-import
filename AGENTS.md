@@ -126,5 +126,6 @@ python3 wme_bot.py --api
 - **v1.8.38**: OSM Overpass API fallback servers (kumi.systems → overpass-api.de) with retry logic
 - **v1.8.39**: Added overpass.openstreetmap.ru as third fallback server
 - **v1.8.40**: OSM radius limited to 300m, timeout reduced to 30s
+- **v1.8.41**: OSM loads asynchronously after Waze/Visicom (faster initial display)
 
 P.S. Все HN заменены на RPP (UA-RPP).

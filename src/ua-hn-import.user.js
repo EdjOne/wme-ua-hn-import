@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.40
+// @version      1.8.41
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1231,7 +1231,7 @@
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
           
-          // OSM needs smaller radius (max 300m) to avoid timeouts
+// OSM needs smaller radius (max 300m) to avoid timeouts
           const osmChecked = document.getElementById('qhnua-src-osm')?.checked;
           if (osmChecked) {
             radius = Math.min(radius, 300);
@@ -1241,18 +1241,17 @@
           const sources = [];
           if (document.getElementById('qhnua-src-waze')?.checked) sources.push('waze');
           if (document.getElementById('qhnua-src-visicom')?.checked) sources.push('visicom');
-          if (document.getElementById('qhnua-src-osm')?.checked) sources.push('osm');
           if (sources.length === 0) sources.push('waze'); // fallback
-          
+
           const bounds = { minLon: lonMin, minLat: latMin, maxLon: lonMax, maxLat: latMax };
-          
-          // Fetch all selected sources in parallel
-          const fetchPromises = sources.map(src => {
+
+          // Separate sources: waze/visicom first (sync render), OSM second (async update)
+          const primarySources = sources.filter(s => s !== 'osm');
+          const fetchPromises = primarySources.map(src => {
             if (src === 'visicom') return fetchAddressesVisicom(bounds);
-            if (src === 'osm') return fetchAddressesOSM(centerLat, centerLon, radius);
             return fetchAddressesWaze(centerLat, centerLon, radius);
           });
-          
+
           Promise.all(fetchPromises)
             .then(results => {
               // Bail out if user clicked Clear
@@ -1338,6 +1337,41 @@
               }
 
               applyFeatureFilter();
+
+              // OSM: fetch separately and add to existing features
+              if (osmChecked) {
+                fetchAddressesOSM(centerLat, centerLon, radius).then(osmResult => {
+                  if (loadId !== currentLoadId) return;
+
+                  const osmFeatures = osmResult.features || [];
+                  for (const item of osmFeatures) {
+                    if (!item.lat || !item.lon) continue;
+
+                    const normalizedNum = normalizeHouseNumber(item.number);
+                    const featureKey = `${normalizedNum}|${item.street}`;
+                    if (window.__uaRppSeenFeatures?.has(featureKey)) continue;
+                    window.__uaRppSeenFeatures?.add(featureKey);
+
+                    lastFeatures.push({
+                      number: normalizedNum,
+                      street: item.street,
+                      streetRaw: item.streetRaw || '',
+                      houseNumberRaw: item.houseNumberRaw || normalizedNum,
+                      processed: false,
+                      conflict: false,
+                      lon: item.lon,
+                      lat: item.lat,
+                      source: 'osm'
+                    });
+                  }
+
+                  applyFeatureFilter();
+                  statusDiv.innerHTML = `Завантажено ${lastFeatures.length} адрес (включаючи OSM).<br/><b>Клікніть на номер на карті, щоб додати!</b>`;
+                }).catch(err => {
+                  console.warn('[OSM] Async fetch failed:', err);
+                  // Don't show error to user - OSM is optional supplement
+                });
+              }
 
               // Ensure layer is visible after load
               lastComputedVisibility = true; // Force visibility state
