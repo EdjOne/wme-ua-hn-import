@@ -6,8 +6,8 @@
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
 // @updateURL    https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
-// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHBvbHlnb24gZmlsbD0iIzhBMkJFMiIgcG9pbnRzPSI0OCwwIDAsOTYgOTYsOTYiLz48L3N2Zz4=
-// @icon64       data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHBvbHlnb24gZmlsbD0iIzhBMkJFMiIgcG9pbnRzPSI0OCwwIDAsOTYgOTYsOTYiLz48L3N2Zz4=
+// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHBvbHlnb24gZmlsbD0iI2ViOTMzYiIgcG9pbnRzPSI0OCwwIDAsOTYgOTYsOTYiLz48L3N2Zz4=
+// @icon64       data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PHBvbHlnb24gZmlsbD0iI2ViOTMzYiIgcG9pbnRzPSI0OCwwIDAsOTYgOTYsOTYiLz48L3N2Zz4=
 // @match        https://www.waze.com/editor*
 // @match        https://www.waze.com/*/editor*
 // @match        https://beta.waze.com/*
@@ -923,7 +923,7 @@
 
       tabPane.innerHTML = `
         <div id="qhnua-pane" style="padding:10px;">
-          <h2 style="margin-top:0;">Швидкий імпорт <span style="color:#8A2BE2;font-weight:bold;margin-left:4px;">▲</span></h2>
+          <h2 style="margin-top:0;">Швидкий імпорт <span style="color:#eb933b;font-weight:bold;margin-left:4px;">▲</span></h2>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px 0;">
             <button id="hn-load" class="wz-button"><span id="hn-load-label">Завантажити</span> <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+L</kbd></button>
             <button id="hn-clear" class="wz-button wz-button--secondary">Очистити <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+K</kbd></button>
