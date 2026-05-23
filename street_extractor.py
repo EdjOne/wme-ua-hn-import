@@ -25,9 +25,9 @@ CITY_CENTERS = {
 
 # Цвета маркеров для разных источников
 SOURCE_COLORS = {
-    'osm': '#FFA500',      # оранжевый
-    'visicom': '#8A2BE2',  # фиолетовый
-    'waze': '#008000',     # зеленый
+    'osm': '#eb933b',      # оранжевый
+    'visicom': '#ebe83b',  # жёлтый
+    'waze': '#4ad958',     # зеленый
 }
 
 # Visicom API key (можно переопределить)
@@ -233,7 +233,7 @@ def build_wme_permalink(streets, city: str = None, geocode: bool = True,
                 result['markers'][street] = {
                     'lat': slat,
                     'lon': slon,
-                    'color': SOURCE_COLORS.get(actual_source, '#FFA500'),
+                    'color': SOURCE_COLORS.get(actual_source, '#eb933b'),
                     'source': actual_source
                 }
     

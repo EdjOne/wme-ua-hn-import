@@ -546,13 +546,13 @@
         getFillColor: ({ feature }) => {
           const p = feature.properties;
           if (p.conflict) return '#ff6666';
-          // Цвета по источнику: OSM-оранж, Visicom-фиолет, Waze-зеленый
+          // Цвета по источнику: OSM-оранж, Visicom-жёлтый, Waze-зеленый
           const colors = {
-            'osm': '#FFA500',
-            'visicom': '#8A2BE2',
-            'waze': '#008000'
+            'osm': '#eb933b',
+            'visicom': '#ebe83b',
+            'waze': '#4ad958'
           };
-          const baseColor = colors[p.source] || '#fb9c4f';
+          const baseColor = colors[p.source] || '#4ad958';
           return p.isSelectedStreet ? '#99ee99' : baseColor;
         },
         getOpacity: ({ feature }) => {
