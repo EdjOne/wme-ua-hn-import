@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.39
+// @version      1.8.40
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -50,7 +50,7 @@
     'https://overpass-api.de/api/interpreter',
     'https://overpass.openstreetmap.ru/api/interpreter'
   ];
-  const OVERPASS_TIMEOUT = 60000;
+  const OVERPASS_TIMEOUT = 30000;
 
 
 
@@ -1230,6 +1230,11 @@
           let radius = Math.max(latRadius, lonRadius) * 0.6; // 60% of half-diagonal
           const userBuffer = LS.getBuffer();
           radius = Math.max(radius, userBuffer);
+          
+          // OSM needs smaller radius (max 500m) to avoid timeouts
+          if (document.getElementById('qhnua-src-osm')?.checked) {
+            radius = Math.min(radius, 500);
+          }
 
           // Choose data sources (multi-select via checkboxes)
           const sources = [];
