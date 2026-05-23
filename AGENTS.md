@@ -117,5 +117,7 @@ python3 wme_bot.py --api
 - **v1.8.26-1.8.29**: Multi-source loading (Waze/Visicom/OSM checkboxes), colored markers per source, tooltip with source
 - **v1.8.30**: Updated tooltip format (Source: Address), legend text (Visicom жовтий)
 - **v1.8.31**: Zoom level lowered to 17 for markers, source checkbox settings persist in localStorage
+- **v1.8.32**: Tooltip uses streetRaw/houseNumberRaw (original names without underscores)
+- **v1.8.33**: Current version
 
 P.S. Все HN заменены на RPP (UA-RPP).
