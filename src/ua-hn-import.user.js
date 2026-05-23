@@ -736,7 +736,7 @@
 
       if (found) {
         const city = found.settlement || '';
-        const street = found.streetRaw || '';
+        const street = found.streetRaw || found.city || '';
         const num = found.houseNumberRaw || found.number || '';
         const source = found.source || '';
         const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
