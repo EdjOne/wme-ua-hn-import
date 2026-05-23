@@ -118,6 +118,7 @@ python3 wme_bot.py --api
 - **v1.8.30**: Updated tooltip format (Source: Address), legend text (Visicom жовтий)
 - **v1.8.31**: Zoom level lowered to 17 for markers, source checkbox settings persist in localStorage
 - **v1.8.32**: Tooltip uses streetRaw/houseNumberRaw (original names without underscores)
-- **v1.8.33**: Current version
+- **v1.8.33**: Added streetRaw/houseNumberRaw to features pushed during merge (all sources)
+- **v1.8.34**: Fixed tooltip fallback (no more underscores from normalized street field)
 
 P.S. Все HN заменены на RPP (UA-RPP).
