@@ -124,5 +124,6 @@ python3 wme_bot.py --api
 - **v1.8.36**: Load button clears deduplication cache before fetching (refresh works correctly)
 - **v1.8.37**: OSM API - detect XML error responses instead of JSON parse failure
 - **v1.8.38**: OSM Overpass API fallback servers (kumi.systems → overpass-api.de) with retry logic
+- **v1.8.39**: Added overpass.openstreetmap.ru as third fallback server
 
 P.S. Все HN заменены на RPP (UA-RPP).

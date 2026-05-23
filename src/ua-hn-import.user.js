@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.38
+// @version      1.8.39
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -17,6 +17,7 @@
 // @connect      stat.waze.com.ua
 // @connect      api.visicom.ua
 // @connect      overpass.kumi.systems
+// @connect      overpass.openstreetmap.ru
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM
@@ -46,7 +47,8 @@
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
   const OVERPASS_APIS = [
     'https://overpass.kumi.systems/api/interpreter',
-    'https://overpass-api.de/api/interpreter'
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.openstreetmap.ru/api/interpreter'
   ];
   const OVERPASS_TIMEOUT = 60000;
 
