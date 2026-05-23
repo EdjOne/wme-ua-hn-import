@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.35
+// @version      1.8.36
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1072,6 +1072,8 @@
         streetNames = {};
         currentStreetId = null;
         lastFeatures = [];
+        // Clear deduplication cache so reloading shows all addresses
+        if (window.__uaRppSeenFeatures) window.__uaRppSeenFeatures.clear();
 
         await updateLayer(statusDiv, myLoadId).catch(err => console.warn('UA-RPP updateLayer:', err));
 
