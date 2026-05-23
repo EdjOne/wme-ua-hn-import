@@ -405,10 +405,11 @@
 
               const street = props.street_type ? `${props.street_type} ${props.street || ''}`.trim() : (props.street || '');
               const city = props.settlement || '';
+              const streetId = normalizeStreetName(street);
 
               features.push({
                 number: props.name || props.house_number || '',
-                street: street,
+                street: streetId,
                 streetRaw: street,
                 houseNumberRaw: props.name || props.house_number || '',
                 city: city,
@@ -1129,6 +1130,8 @@
           properties: {
             number: feat.number,
             street: feat.street,
+            streetRaw: feat.streetRaw || '',
+            houseNumberRaw: feat.houseNumberRaw || '',
             city: feat.settlement || '',
             processed: feat.processed,
             conflict: feat.conflict,
@@ -1254,7 +1257,7 @@
                 features.push({
                   number: normalizedNum,
                   street: item.street,
-                  streetRaw: item.streetRaw || item.street,
+                  streetRaw: item.streetRaw || '',
                   houseNumberRaw: item.houseNumberRaw || normalizedNum,
                   processed,
                   conflict,
