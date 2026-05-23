@@ -87,7 +87,9 @@
     getSource()       { return localStorage.getItem('qhnua-source') || 'waze'; },
     setSource(v)      { localStorage.setItem('qhnua-source', v); },
     getLockRank2()    { return localStorage.getItem('qhnua-lock-rank2') === '1'; },
-    setLockRank2(v)   { localStorage.setItem('qhnua-lock-rank2', v ? '1' : '0'); }
+    setLockRank2(v)   { localStorage.setItem('qhnua-lock-rank2', v ? '1' : '0'); },
+    getSources()      { try { return JSON.parse(localStorage.getItem('qhnua-sources') || '["waze"]'); } catch { return ['waze']; } },
+    setSources(v)     { localStorage.setItem('qhnua-sources', JSON.stringify(v)); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -588,7 +590,7 @@
     let lastComputedVisibility = false;
     function updateLayerVisibility() {
       const currentZoom = wmeSDK.Map.getZoomLevel();
-      const shouldBeVisible = userWantsLayerVisible && currentZoom >= 18;
+      const shouldBeVisible = userWantsLayerVisible && currentZoom >= 17;
 
       if (shouldBeVisible === lastComputedVisibility) return;
       lastComputedVisibility = shouldBeVisible;
@@ -1032,6 +1034,25 @@
           LS.setSource(sourceEl.value);
         });
       }
+
+      // Restore source checkboxes from localStorage
+      const chkWaze = tabPane.querySelector('#qhnua-src-waze');
+      const chkVisicom = tabPane.querySelector('#qhnua-src-visicom');
+      const chkOsm = tabPane.querySelector('#qhnua-src-osm');
+      const savedSources = LS.getSources();
+      if (chkWaze) { chkWaze.checked = savedSources.includes('waze'); }
+      if (chkVisicom) { chkVisicom.checked = savedSources.includes('visicom'); }
+      if (chkOsm) { chkOsm.checked = savedSources.includes('osm'); }
+      const updateSourcesStorage = () => {
+        const sources = [];
+        if (chkWaze?.checked) sources.push('waze');
+        if (chkVisicom?.checked) sources.push('visicom');
+        if (chkOsm?.checked) sources.push('osm');
+        LS.setSources(sources);
+      };
+      chkWaze?.addEventListener('change', updateSourcesStorage);
+      chkVisicom?.addEventListener('change', updateSourcesStorage);
+      chkOsm?.addEventListener('change', updateSourcesStorage);
 
       async function loadSelectedStreet() {
         if (isLoading) return;
