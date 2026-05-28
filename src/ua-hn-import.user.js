@@ -188,15 +188,32 @@
   function metersToDeg(m) { return m / 111320; }
 
   // Snap marker toward nearest road segment, offset along perpendicular
-  // Fuzzy street name match: handles typos like "центрльна" vs "центральна"
-  // Returns true if normalized names share a common prefix ≥ minPrefix chars
-  function fuzzyStreetMatch(a, b, minPrefix = 5) {
+  // Fuzzy street name match: handles typos, doubled/missing letters
+  // 1) Common prefix ≥5 chars, OR 2) Levenshtein distance ≤2
+  function fuzzyStreetMatch(a, b) {
     if (a === b) return true;
     if (!a || !b) return false;
-    // Find common prefix length
-    let i = 0;
-    while (i < a.length && i < b.length && a[i] === b[i]) i++;
-    return i >= minPrefix;
+    // Quick check: common prefix ≥5
+    let prefix = 0;
+    while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix++;
+    if (prefix >= 5) return true;
+    // Levenshtein distance ≤2 (handles doubled/missing letters like "бесарабська" vs "бессарабська")
+    const m = a.length, n = b.length;
+    if (Math.abs(m - n) > 2) return false; // too different in length
+    const dp = [];
+    for (let i = 0; i <= m; i++) dp[i] = [i];
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        dp[i][j] = Math.min(
+          dp[i-1][j] + 1,
+          dp[i][j-1] + 1,
+          dp[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1)
+        );
+      }
+      if (dp[i][n] <= 2) return true; // early exit
+    }
+    return dp[m][n] <= 2;
   }
 
   // Find WME numeric street ID by street name (with fuzzy matching)
