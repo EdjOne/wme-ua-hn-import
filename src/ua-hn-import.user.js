@@ -188,6 +188,17 @@
   function metersToDeg(m) { return m / 111320; }
 
   // Snap marker toward nearest road segment, offset along perpendicular
+  // Fuzzy street name match: handles typos like "центрльна" vs "центральна"
+  // Returns true if normalized names share a common prefix ≥ minPrefix chars
+  function fuzzyStreetMatch(a, b, minPrefix = 5) {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    // Find common prefix length
+    let i = 0;
+    while (i < a.length && i < b.length && a[i] === b[i]) i++;
+    return i >= minPrefix;
+  }
+
   function snapToNearestRoad(lon, lat, streetName) {
     try {
       const allSegments = wmeSDK.DataModel.Segments.getAll();
@@ -204,13 +215,13 @@
         const segNameRaw = segStreet?.name || '';
         const segNameClean = cleanStreetName(segNameRaw);
         const segNameNorm = normalizeForComparison(segNameClean);
-        let matches = segNameNorm === normalizedTarget;
+        let matches = fuzzyStreetMatch(segNameNorm, normalizedTarget);
         if (!matches && seg.alternateStreetIds?.length) {
           for (const altId of seg.alternateStreetIds) {
             const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
             const altNameNorm = normalizeForComparison(cleanStreetName(altStreet?.name || ''));
-            if (altNameNorm === normalizedTarget) {
-              console.log(`[UA-RPP snap] ✓ alt match: "${altStreet?.name}" → "${altNameNorm}"`);
+            if (fuzzyStreetMatch(altNameNorm, normalizedTarget)) {
+              console.log(`[UA-RPP snap] ✓ alt fuzzy match: "${altStreet?.name}" → "${altNameNorm}"`);
               matches = true; break;
             }
           }
@@ -221,6 +232,9 @@
             console.log(`[UA-RPP snap] ✗ "${segNameRaw}" → clean="${segNameClean}" norm="${segNameNorm}" (id=${seg.primaryStreetId})`);
           }
           continue;
+        }
+        if (segNameNorm !== normalizedTarget) {
+          console.log(`[UA-RPP snap] ~ fuzzy match: "${segNameRaw}" ≈ "${streetName}"`);
         }
         matchCount++;
 
