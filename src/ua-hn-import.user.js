@@ -19,6 +19,7 @@
 // @connect      overpass.kumi.systems
 // @connect      overpass.openstreetmap.ru
 // @connect      overpass.openstreetmap.org
+// @connect      maps.mail.ru
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM
@@ -50,9 +51,11 @@
     'https://overpass.kumi.systems/api/interpreter',
     'https://overpass-api.de/api/interpreter',
     'https://overpass.openstreetmap.ru/api/interpreter',
-    'https://overpass.openstreetmap.org/api/interpreter'
+    'https://overpass.openstreetmap.org/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+    'https://maps.mail.ru/osm2/api/interpreter'
   ];
-  const OVERPASS_TIMEOUT = 60000;
+  const OVERPASS_TIMEOUT = 120000;
 
 
 
