@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.66
+// @version      1.8.65
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -190,7 +190,7 @@
         }
       }
 
-      // If nearest road is within 100m, offset toward marker but not beyond it
+      // If nearest road is within 100m, offset from road toward marker
       const maxDist = metersToDeg(100);
       const offsetDist = metersToDeg(LS.getSnapDistance());
       if (bestProj && bestDist < maxDist) {
@@ -199,14 +199,16 @@
         const dy = lat - bestProj.lat;
         const dist = Math.hypot(dx, dy);
         if (dist < offsetDist) {
-          // Marker is closer than offset distance - place RPP at marker
-          return { lon, lat };
+          // Already closer than offset distance to the road - snap back to offset
+          return {
+            lon: bestProj.lon + (dx / dist) * offsetDist,
+            lat: bestProj.lat + (dy / dist) * offsetDist
+          };
         }
-        // Place RPP on the line between projection and marker, at offsetDist from projection
-        const ratio = offsetDist / dist;
+        // Move toward original point by offsetDist
         return {
-          lon: bestProj.lon + dx * ratio,
-          lat: bestProj.lat + dy * ratio
+          lon: bestProj.lon + (dx / dist) * offsetDist,
+          lat: bestProj.lat + (dy / dist) * offsetDist
         };
       }
     } catch (e) {
