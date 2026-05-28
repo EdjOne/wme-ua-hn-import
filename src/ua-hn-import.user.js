@@ -195,18 +195,34 @@
       let bestEndDist = Infinity, bestEndProj = null;   // endpoint fallbacks (t clamped to 0 or 1)
 
       const normalizedTarget = normalizeForComparison(cleanStreetName(streetName));
+      console.log(`[UA-RPP snap] target="${streetName}" → clean="${cleanStreetName(streetName)}" → normalized="${normalizedTarget}"`);
 
+      let matchCount = 0;
       for (const seg of allSegments) {
         // Match by street name (not ID — streetId is a normalized string, seg.primaryStreetId is numeric)
         const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
-        let matches = normalizeForComparison(cleanStreetName(segStreet?.name || '')) === normalizedTarget;
+        const segNameRaw = segStreet?.name || '';
+        const segNameClean = cleanStreetName(segNameRaw);
+        const segNameNorm = normalizeForComparison(segNameClean);
+        let matches = segNameNorm === normalizedTarget;
         if (!matches && seg.alternateStreetIds?.length) {
           for (const altId of seg.alternateStreetIds) {
             const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
-            if (normalizeForComparison(cleanStreetName(altStreet?.name || '')) === normalizedTarget) { matches = true; break; }
+            const altNameNorm = normalizeForComparison(cleanStreetName(altStreet?.name || ''));
+            if (altNameNorm === normalizedTarget) {
+              console.log(`[UA-RPP snap] ✓ alt match: "${altStreet?.name}" → "${altNameNorm}"`);
+              matches = true; break;
+            }
           }
         }
-        if (!matches) continue;
+        if (!matches) {
+          if (matchCount === 0 && segNameRaw) {
+            // Log first few non-matches to see what's available
+            console.log(`[UA-RPP snap] ✗ "${segNameRaw}" → clean="${segNameClean}" norm="${segNameNorm}" (id=${seg.primaryStreetId})`);
+          }
+          continue;
+        }
+        matchCount++;
 
         const coords = seg.geometry?.coordinates;
         if (!coords || coords.length < 2) continue;
@@ -214,6 +230,7 @@
         for (let i = 0; i < coords.length - 1; i++) {
           const proj = projectOnSegment(lon, lat, coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
           const isPerpendicular = proj.t > 0.01 && proj.t < 0.99; // true perpendicular (not clamped to endpoint)
+          console.log(`[UA-RPP snap] ✓ match "${segNameRaw}" sub=${i} t=${proj.t.toFixed(3)} dist=${proj.dist.toFixed(1)}m perp=${isPerpendicular}`);
           if (isPerpendicular && proj.dist < bestPerpDist) {
             bestPerpDist = proj.dist;
             bestPerpProj = proj;
@@ -223,6 +240,8 @@
           }
         }
       }
+
+      console.log(`[UA-RPP snap] result: perp=${bestPerpProj ? bestPerpDist.toFixed(1)+'m' : 'none'} end=${bestEndProj ? bestEndDist.toFixed(1)+'m' : 'none'} matched_segments=${matchCount}`);
 
       // Prefer true perpendicular; fall back to endpoint if none found
       const bestProj = bestPerpProj || bestEndProj;
