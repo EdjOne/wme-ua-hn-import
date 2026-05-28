@@ -1331,7 +1331,7 @@ if (isNamedUnnamed) {
             <span style="color:#0066cc;font-weight:bold;">Джерела:</span> <span style="font-size:12px;">Зона пошуку <input id="qhnua-buffer" type="number" min="0" step="50" style="width:60px;margin-left:2px;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;"> м</span><br/>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze"> Waze (зелений)</label>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-visicom"> Visicom (жовтий)</label>
-            <label><input type="checkbox" id="qhnua-src-osm"> OSM (сірий)</label>
+            <label><input type="checkbox" id="qhnua-src-osm"> OSM (оранжевий)</label>
           </div>
           <div style="margin:6px 0;font-size:12px;">
             <label style="display:block;margin-bottom:4px;">API ключ Visicom (<a href="https://api.visicom.ua/accounts/forms?page=register" target="_blank" style="color:#0066cc;text-decoration:none;">Отримати тут</a>):</label>
