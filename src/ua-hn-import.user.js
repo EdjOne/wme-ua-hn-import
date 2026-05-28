@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.61
+// @version      1.8.62
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -98,7 +98,11 @@
     getLockRank2()    { return localStorage.getItem('qhnua-lock-rank2') === '1'; },
     setLockRank2(v)   { localStorage.setItem('qhnua-lock-rank2', v ? '1' : '0'); },
     getSources()      { try { return JSON.parse(localStorage.getItem('qhnua-sources') || '[]'); } catch { return []; } },
-    setSources(v)     { localStorage.setItem('qhnua-sources', JSON.stringify(v)); }
+    setSources(v)     { localStorage.setItem('qhnua-sources', JSON.stringify(v)); },
+    getSnapToRoad()   { return localStorage.getItem('qhnua-snap-road') === '1'; },
+    setSnapToRoad(v)  { localStorage.setItem('qhnua-snap-road', v ? '1' : '0'); },
+    getSnapDistance() { return Number(localStorage.getItem('qhnua-snap-dist') ?? '15'); },
+    setSnapDistance(v){ localStorage.setItem('qhnua-snap-dist', String(v)); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -143,6 +147,74 @@
 
   function normalizeStreetName(name) {
     return String(name).toLowerCase().replace(/\s+/g, '_');
+  }
+
+  // Projection of point onto line segment (returns lon, lat on segment)
+  function projectOnSegment(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return { lon: x1, lat: y1, dist: Math.hypot(px - x1, py - y1) };
+    let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const lon = x1 + t * dx, lat = y1 + t * dy;
+    const dist = Math.hypot(px - lon, py - lat);
+    return { lon, lat, dist };
+  }
+
+  // Convert meters to degrees (approx)
+  function metersToDeg(m) { return m / 111320; }
+
+  // Snap marker toward nearest road segment, offset 15m from road
+  function snapToNearestRoad(lon, lat, streetId) {
+    try {
+      const allSegments = wmeSDK.DataModel.Segments.getAll();
+      let bestDist = Infinity, bestProj = null, bestSeg = null;
+
+      for (const seg of allSegments) {
+        // Only consider segments matching this street
+        const matchesStreet = seg.primaryStreetId === streetId ||
+          (seg.alternateStreetIds || []).includes(streetId);
+        if (!matchesStreet) continue;
+
+        const coords = seg.geometry?.coordinates;
+        if (!coords || coords.length < 2) continue;
+
+        // Find closest point on this segment line
+        for (let i = 0; i < coords.length - 1; i++) {
+          const proj = projectOnSegment(lon, lat, coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
+          if (proj.dist < bestDist) {
+            bestDist = proj.dist;
+            bestProj = proj;
+            bestSeg = { coordA: coords[i], coordB: coords[i+1] };
+          }
+        }
+      }
+
+      // If nearest road is within 100m, offset 15m from road toward marker
+      const maxDist = metersToDeg(100);
+      const offsetDist = metersToDeg(15);
+      if (bestProj && bestDist < maxDist) {
+        // Vector from projection point toward original marker
+        const dx = lon - bestProj.lon;
+        const dy = lat - bestProj.lat;
+        const dist = Math.hypot(dx, dy);
+        if (dist < offsetDist) {
+          // Already closer than 15m to the road - snap back to offset
+          return {
+            lon: bestProj.lon + (dx / dist) * offsetDist,
+            lat: bestProj.lat + (dy / dist) * offsetDist
+          };
+        }
+        // Move toward original point by offsetDist
+        return {
+          lon: bestProj.lon + (dx / dist) * offsetDist,
+          lat: bestProj.lat + (dy / dist) * offsetDist
+        };
+      }
+    } catch (e) {
+      console.warn('[UA-RPP] snapToRoad error:', e.message);
+    }
+    return null;
   }
 
   // Escape HTML special characters for safe attribute insertion
@@ -1113,9 +1185,20 @@ if (isNamedUnnamed) {
           return;
         }
 
+        // --- Snap to road logic ---
+        let snapLon = feature.lon;
+        let snapLat = feature.lat;
+        if (LS.getSnapToRoad()) {
+          const snapResult = snapToNearestRoad(feature.lon, feature.lat, streetId);
+          if (snapResult) {
+            snapLon = snapResult.lon;
+            snapLat = snapResult.lat;
+          }
+        }
+
         const geometry = {
           type: 'Point',
-          coordinates: [feature.lon, feature.lat]
+          coordinates: [snapLon, snapLat]
         };
 
         // Create venue first (WME Venues API always creates POI, then we convert to RPP)
@@ -1146,7 +1229,7 @@ if (isNamedUnnamed) {
             isExit: true,
             isPrimary: true,
             name: '',
-            point: { type: 'Point', coordinates: [feature.lon, feature.lat] }
+            point: { type: 'Point', coordinates: [snapLon, snapLat] }
           }]
         });
 
@@ -1221,6 +1304,7 @@ if (isNamedUnnamed) {
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="hn-no-duplicates">Не створювати дублікати</wz-checkbox>
             <wz-checkbox id="hn-lock-rank2">Заблокувати RPP (рівень 2)</wz-checkbox>
+            <wz-checkbox id="hn-snap-road">Підтягувати до дороги</wz-checkbox>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
@@ -1300,6 +1384,16 @@ if (isNamedUnnamed) {
           const on = isChecked(chkLockRank2);
           setChecked(chkLockRank2, !on);
           LS.setLockRank2(!on);
+        });
+      }
+
+      const chkSnapRoad = tabPane.querySelector('#hn-snap-road');
+      if (chkSnapRoad) {
+        setChecked(chkSnapRoad, LS.getSnapToRoad());
+        chkSnapRoad.addEventListener('click', () => {
+          const on = isChecked(chkSnapRoad);
+          setChecked(chkSnapRoad, !on);
+          LS.setSnapToRoad(!on);
         });
       }
 
