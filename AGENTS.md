@@ -45,7 +45,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-│   └── ua-hn-import.user.js  # v1.7.22
+`├── ua-hn-import.user.js  # v1.8.58`
 ```
 
 ## ✅ Статус
@@ -127,5 +127,18 @@ python3 wme_bot.py --api
 - **v1.8.39**: Added overpass.openstreetmap.ru as third fallback server
 - **v1.8.40**: OSM radius limited to 300m, timeout reduced to 30s
 - **v1.8.41**: OSM loads asynchronously after Waze/Visicom (faster initial display)
+- **v1.8.42**: Fixed OSM-only mode - when only OSM is selected, Waze/Visicom points no longer show
+- **v1.8.43**: Removed `checked` from Waze checkbox, added OSM to sources array (OSM-only mode works correctly)
+- **v1.8.44**: If segment has no street name, use marker's street name; for Visicom remove old name in parentheses (e.g., "Нова (Стара)" → "Нова")
+- **v1.8.45**: Fix ReferenceError - declare restrictionsDiv at init()
+- **v1.8.46**: Bump version (merge fix)
+- **v1.8.47**: "Unnamed road" segments should not create RPP
+- **v1.8.48**: Fixed syntax error in unnamed road check regex
+- **v1.8.49**: Added debug log for street name from segment
+- **v1.8.50**: Empty street name uses marker street; search 300m radius
+- **v1.8.51**: If no matching street found within 300m, don't create RPP
+- **v1.8.52**: Added calculateDistance function (Haversine formula)
+- **v1.8.53**: Replaced throw new Error with console.warn + toast + return — no more red console errors for normal situations (300m radius, Unnamed road, duplicates)
+- **v1.8.58**: Fixed bug where clicking Load without selecting any source would load Waze by default - now shows warning toast
 
 P.S. Все HN заменены на RPP (UA-RPP).

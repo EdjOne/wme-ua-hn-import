@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.41
+// @version      1.8.58
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -93,7 +93,7 @@
     setSource(v)      { localStorage.setItem('qhnua-source', v); },
     getLockRank2()    { return localStorage.getItem('qhnua-lock-rank2') === '1'; },
     setLockRank2(v)   { localStorage.setItem('qhnua-lock-rank2', v ? '1' : '0'); },
-    getSources()      { try { return JSON.parse(localStorage.getItem('qhnua-sources') || '["waze"]'); } catch { return ['waze']; } },
+    getSources()      { try { return JSON.parse(localStorage.getItem('qhnua-sources') || '[]'); } catch { return []; } },
     setSources(v)     { localStorage.setItem('qhnua-sources', JSON.stringify(v)); }
   };
 
@@ -123,6 +123,18 @@
       }
     }
     return false;
+}
+ 
+  // Calculate distance between two lat/lon points (Haversine formula) in kilometers
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
   }
 
   function normalizeStreetName(name) {
@@ -185,6 +197,13 @@
 
   function removeDiacritics(str) {
     return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  // Clean street name for Visicom: remove old name in parentheses
+  // "вулиця Нова (Стара вулиця)" → "вулиця Нова"
+  function cleanStreetName(name) {
+    if (!name) return name;
+    return String(name).split('(')[0].trim();
   }
 
 // Normalize house number: fix fractions and letter case
@@ -572,6 +591,7 @@
     let userWantsLayerVisible = false;
     let streetNameSpan = null;
     let currentStreetDiv = null;
+    let restrictionsDiv = null;
     
     // Last restriction reason when RPP cannot be added
     let lastRestriction = null;
@@ -793,6 +813,8 @@
 
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-move', eventHandler: handleMouseMove });
 
+    // === End Map Tooltip ===
+
     function onFeatureClick(feature) {
       if (feature.processed) return;
       if (typeof feature.lat !== 'number' || typeof feature.lon !== 'number' || isNaN(feature.lat) || isNaN(feature.lon)) {
@@ -849,21 +871,89 @@
         }
         
         if (!nearestStreetId) {
-          console.warn('[UA-RPP] Не знайдено сегментів. Мінімальна відстань:', minDist, 'px');
-          throw new Error('Не знайдено сегментів поруч з цим маркером');
+          const msg = 'Не знайдено сегментів поруч з цим маркером';
+          console.warn('[UA-RPP]', msg);
+          toast(msg, 'warning');
+          return;
         }
         
         // Check if street has a name (RPP cannot be created without street name)
         const street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
+        
+        // "Unnamed road" with actual name text - should not create RPP even with marker street name
+        // But EMPTY name is ok - we'll use marker's street
+        const streetNameLower = street?.name?.toLowerCase() || '';
+        const isNamedUnnamed = streetNameLower && 
+            /^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(streetNameLower.trim());
+if (isNamedUnnamed) {
+          const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
+          console.warn('[UA-RPP]', msg);
+          toast(msg, 'warning');
+          return;
+        }
+       
+        // If segment lacks street name, use the one from the marker
+        let effectiveStreetName = null;
+        let useMarkerStreet = false;
+        
         if (!street || !street.name) {
-          throw new Error('Сегмент без назви вулиці — RPP не можна створити');
+          // Segment without name - use marker's street
+          if (feature.streetRaw) {
+            effectiveStreetName = feature.streetRaw;
+            useMarkerStreet = true;
+          } else {
+            const msg = 'Сегмент без назви вулиці — RPP не можна створити';
+            console.warn('[UA-RPP]', msg);
+            toast(msg, 'warning');
+            return;
+          }
         }
         
-        const streetId = nearestStreetId;
+        // Clean Visicom street names (remove old name in parentheses)
+        if (useMarkerStreet || feature.source === 'visicom') {
+          effectiveStreetName = cleanStreetName(effectiveStreetName || street?.name);
+        }
+        
+        // If using marker's street name, try to find matching street in WME within 300m radius
+        let streetId = nearestStreetId;
+        let foundMatchingStreet = false;
+        if (useMarkerStreet && effectiveStreetName) {
+          const normalizedMarkerStreet = normalizeForComparison(effectiveStreetName);
+          const allSegments = wmeSDK.DataModel.Segments.getAll();
+          const streetIds = new Set();
+          for (const seg of allSegments) {
+            // Check distance within 300m radius
+            if (feature.lat && feature.lon && seg.geometry) {
+              const segDist = calculateDistance(feature.lat, feature.lon, 
+                seg.geometry.coordinates[1], seg.geometry.coordinates[0]);
+              if (segDist > 0.3) continue; // Skip if > 300m
+            }
+            if (seg.primaryStreetId) streetIds.add(seg.primaryStreetId);
+            (seg.alternateStreetIds || []).forEach(id => streetIds.add(id));
+          }
+          for (const id of streetIds) {
+            const wmeStreet = wmeSDK.DataModel.Streets.getById({ streetId: id });
+            if (wmeStreet?.name && normalizeForComparison(wmeStreet.name) === normalizedMarkerStreet) {
+              streetId = id;
+              foundMatchingStreet = true;
+              break;
+            }
+          }
+// If no matching street found within 300m, don't create RPP
+          if (!foundMatchingStreet) {
+            const msg = `Не знайдено вулиці "${effectiveStreetName}" в радіусі 300м`;
+            console.warn('[UA-RPP]', msg);
+            toast(msg, 'warning');
+            return;
+          }
+        }
 
         // Check for duplicates before creating
         if (LS.getNoDuplicates() && hasDuplicate(houseNumber, streetId, true)) {
-          throw new Error('RPP з таким номером вже існує на цій вулиці');
+          const msg = 'RPP з таким номером вже існує на цій вулиці';
+          console.warn('[UA-RPP]', msg);
+          toast(msg, 'warning');
+          return;
         }
 
         const geometry = {
@@ -871,25 +961,21 @@
           coordinates: [feature.lon, feature.lat]
         };
 
-        // Add venue
+        // Create venue first (WME Venues API always creates POI, then we convert to RPP)
         const venueId = wmeSDK.DataModel.Venues.addVenue({
           category: 'OTHER',
           geometry: geometry
         });
-
-        // Update with address and street
+        
         wmeSDK.DataModel.Venues.updateVenue({
           venueId: String(venueId),
           name: houseNumber
         });
-        
         wmeSDK.DataModel.Venues.updateAddress({
           venueId: String(venueId),
           houseNumber: houseNumber,
           streetId: streetId
         });
-
-        // Set as residential
         wmeSDK.DataModel.Venues.updateVenueIsResidential({
           venueId: String(venueId),
           isResidential: true
@@ -982,7 +1068,7 @@
           </div>
           <div style="margin:6px 0;font-size:13px;">
             <span style="color:#0066cc;font-weight:bold;">Джерела:</span><br/>
-            <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze" checked> Waze (зелений)</label>
+            <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze"> Waze (зелений)</label>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-visicom"> Visicom (жовтий)</label>
             <label><input type="checkbox" id="qhnua-src-osm"> OSM (оранжевий)</label>
           </div>
@@ -1241,7 +1327,13 @@
           const sources = [];
           if (document.getElementById('qhnua-src-waze')?.checked) sources.push('waze');
           if (document.getElementById('qhnua-src-visicom')?.checked) sources.push('visicom');
-          if (sources.length === 0) sources.push('waze'); // fallback
+          if (document.getElementById('qhnua-src-osm')?.checked) sources.push('osm');
+          if (sources.length === 0) {
+            toast('Виберіть хоча б одне джерело даних (Waze/Visicom/OSM)', 'warning');
+            loading.style.display = 'none';
+            resolve();
+            return;
+          }
 
           const bounds = { minLon: lonMin, minLat: latMin, maxLon: lonMax, maxLat: latMax };
 
@@ -1251,6 +1343,11 @@
             if (src === 'visicom') return fetchAddressesVisicom(bounds);
             return fetchAddressesWaze(centerLat, centerLon, radius);
           });
+
+          // Add OSM to fetch promises if selected
+          if (sources.includes('osm')) {
+            fetchPromises.push(fetchAddressesOSM(centerLat, centerLon, radius));
+          }
 
           Promise.all(fetchPromises)
             .then(results => {
@@ -1314,15 +1411,21 @@
 
               currentStreetId = null;
 
-              if (!features.length) {
+              // OSM-only mode: allow empty features if OSM is enabled
+              const hasPrimarySources = primarySources.length > 0;
+              if (!features.length && !osmChecked) {
                 loading.style.display = 'none';
                 statusDiv.textContent = 'Не знайдено адрес у цьому районі.';
                 resolve();
                 return;
               }
 
-              statusDiv.textContent = `Знайдено: ${features.length} адрес (радіус: ${Math.round(radius)}м)`;
+              // Initialize lastFeatures (for OSM-only mode)
               lastFeatures = features;
+
+              statusDiv.textContent = hasPrimarySources 
+                ? `Знайдено: ${features.length} адрес (радіус: ${Math.round(radius)}м)`
+                : 'Завантаження OSM даних...';
 
               if (currentStreetId && streetNames[currentStreetId]) {
                 streetNameSpan.textContent = streetNames[currentStreetId];
@@ -1365,10 +1468,14 @@
                     });
                   }
 
-                  applyFeatureFilter();
+applyFeatureFilter();
                   statusDiv.innerHTML = `Завантажено ${lastFeatures.length} адрес (включаючи OSM).<br/><b>Клікніть на номер на карті, щоб додати!</b>`;
                 }).catch(err => {
                   console.warn('[OSM] Async fetch failed:', err);
+                  loading.style.display = 'none';
+                  if (!hasPrimarySources) {
+                    statusDiv.textContent = 'Помилка OSM: ' + err.message;
+                  }
                   // Don't show error to user - OSM is optional supplement
                 });
               }
@@ -1380,9 +1487,12 @@
               setChecked(chkVis, true);
               LS.setLayerVisible(true);
 
-loading.style.display = 'none';
-              statusDiv.innerHTML = `Завантажено ${features.length} адрес.<br/>` +
-                `<b>Клікніть на номер на карті, щоб додати!</b>`;
+// For OSM-only: don't show final status yet, wait for OSM fetch
+              loading.style.display = 'none';
+              if (hasPrimarySources) {
+                statusDiv.innerHTML = `Завантажено ${lastFeatures.length} адрес.<br/>` +
+                  `<b>Клікніть на номер на карті, щоб додати!</b>`;
+              }
               resolve();
             })
             .catch(err => {
