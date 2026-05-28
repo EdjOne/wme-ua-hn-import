@@ -101,7 +101,7 @@
     setSources(v)     { localStorage.setItem('qhnua-sources', JSON.stringify(v)); },
     getSnapToRoad()   { return localStorage.getItem('qhnua-snap-road') === '1'; },
     setSnapToRoad(v)  { localStorage.setItem('qhnua-snap-road', v ? '1' : '0'); },
-    getSnapDistance() { return Number(localStorage.getItem('qhnua-snap-dist') ?? '15'); },
+    getSnapDistance() { return Number(localStorage.getItem('qhnua-snap-dist') ?? '20'); },
     setSnapDistance(v){ localStorage.setItem('qhnua-snap-dist', String(v)); }
   };
 
@@ -1304,7 +1304,7 @@ if (isNamedUnnamed) {
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="hn-no-duplicates">Не створювати дублікати</wz-checkbox>
             <wz-checkbox id="hn-lock-rank2">Заблокувати RPP (рівень 2)</wz-checkbox>
-            <span style="display:inline-flex;align-items:center;gap:6px;"><wz-checkbox id="hn-snap-road">Підтягувати до дороги</wz-checkbox><input id="hn-snap-dist" type="number" min="1" max="200" step="1" value="10" style="width:50px;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;" title="Відстань від дороги (м)"> м</span>
+            <span style="display:inline-flex;align-items:center;gap:6px;"><wz-checkbox id="hn-snap-road">Підтягувати до дороги</wz-checkbox><input id="hn-snap-dist" type="number" min="1" max="200" step="1" value="20" style="width:50px;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;" title="Відстань від дороги (м)"> м</span>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
