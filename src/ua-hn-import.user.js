@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.69
+// @version      1.8.70
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -194,16 +194,16 @@
       let bestPerpDist = Infinity, bestPerpProj = null; // true perpendiculars (t inside segment)
       let bestEndDist = Infinity, bestEndProj = null;   // endpoint fallbacks (t clamped to 0 or 1)
 
-      const normalizedTarget = normalizeForComparison(streetName);
+      const normalizedTarget = normalizeForComparison(cleanStreetName(streetName));
 
       for (const seg of allSegments) {
         // Match by street name (not ID — streetId is a normalized string, seg.primaryStreetId is numeric)
         const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
-        let matches = normalizeForComparison(segStreet?.name || '') === normalizedTarget;
+        let matches = normalizeForComparison(cleanStreetName(segStreet?.name || '')) === normalizedTarget;
         if (!matches && seg.alternateStreetIds?.length) {
           for (const altId of seg.alternateStreetIds) {
             const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
-            if (normalizeForComparison(altStreet?.name || '') === normalizedTarget) { matches = true; break; }
+            if (normalizeForComparison(cleanStreetName(altStreet?.name || '')) === normalizedTarget) { matches = true; break; }
           }
         }
         if (!matches) continue;
