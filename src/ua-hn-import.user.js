@@ -200,12 +200,27 @@
   }
 
   // Find WME numeric street ID by street name (with fuzzy matching)
+  // If match via alternate street — returns the PRIMARY street ID
   function findWmeStreetId(streetName) {
     const allStreets = wmeSDK.DataModel.Streets.getAll();
     const target = normalizeForComparison(cleanStreetName(streetName));
+    // First pass: exact/fuzzy match on primary name
     for (const s of allStreets) {
       if (fuzzyStreetMatch(normalizeForComparison(cleanStreetName(s.name || '')), target)) {
         return s.id;
+      }
+    }
+    // Second pass: match via alternate street → return primary street ID
+    const allSegments = wmeSDK.DataModel.Segments.getAll();
+    for (const seg of allSegments) {
+      if (!seg.alternateStreetIds?.length) continue;
+      for (const altId of seg.alternateStreetIds) {
+        const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
+        if (fuzzyStreetMatch(normalizeForComparison(cleanStreetName(altStreet?.name || '')), target)) {
+          // Return the PRIMARY street of this segment, not the alternate
+          const primaryStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+          if (primaryStreet) return primaryStreet.id;
+        }
       }
     }
     return null;
