@@ -164,7 +164,7 @@
   // Convert meters to degrees (approx)
   function metersToDeg(m) { return m / 111320; }
 
-  // Snap marker toward nearest road segment, offset 15m from road
+  // Snap marker toward nearest road segment, offset 10m from road
   function snapToNearestRoad(lon, lat, streetId) {
     try {
       const allSegments = wmeSDK.DataModel.Segments.getAll();
@@ -192,7 +192,7 @@
 
       // If nearest road is within 100m, offset 15m from road toward marker
       const maxDist = metersToDeg(100);
-      const offsetDist = metersToDeg(15);
+      const offsetDist = metersToDeg(10);
       if (bestProj && bestDist < maxDist) {
         // Vector from projection point toward original marker
         const dx = lon - bestProj.lon;
