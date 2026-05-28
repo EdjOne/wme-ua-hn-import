@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.67
+// @version      1.8.68
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -150,7 +150,7 @@
   }
 
   // Projection of point onto line segment with cosine correction for lat/lon
-  // Returns projected lon, lat and distance in meters
+  // Returns projected lon, lat, distance in meters, and t (0..1 on segment)
   function projectOnSegment(px, py, x1, y1, x2, y2) {
     // Average latitude for cosine correction
     const avgLat = (y1 + y2 + py) / 3;
@@ -165,10 +165,11 @@
     const len2 = dx * dx + dy * dy;
     if (len2 === 0) {
       const mDx = (px - x1) * cosLat * 111320, mDy = (py - y1) * 111320;
-      return { lon: x1, lat: y1, dist: Math.hypot(mDx, mDy) };
+      return { lon: x1, lat: y1, dist: Math.hypot(mDx, mDy), t: 0 };
     }
 
     let t = ((cx - cx1) * dx + (cy - cy1) * dy) / len2;
+    const rawT = t; // before clamping — tells us if projection is a true perpendicular
     t = Math.max(0, Math.min(1, t));
 
     // Convert back to lon/lat
@@ -180,7 +181,7 @@
     const meterDy = (py - projLat) * 111320;
     const dist = Math.hypot(meterDx, meterDy);
 
-    return { lon: projLon, lat: projLat, dist };
+    return { lon: projLon, lat: projLat, dist, t: rawT };
   }
 
   // Convert meters to degrees (approx)
@@ -190,7 +191,8 @@
   function snapToNearestRoad(lon, lat, streetId) {
     try {
       const allSegments = wmeSDK.DataModel.Segments.getAll();
-      let bestDist = Infinity, bestProj = null;
+      let bestPerpDist = Infinity, bestPerpProj = null; // true perpendiculars (t inside segment)
+      let bestEndDist = Infinity, bestEndProj = null;   // endpoint fallbacks (t clamped to 0 or 1)
 
       for (const seg of allSegments) {
         const matchesStreet = seg.primaryStreetId === streetId ||
@@ -200,17 +202,23 @@
         const coords = seg.geometry?.coordinates;
         if (!coords || coords.length < 2) continue;
 
-        // Find closest point on this segment line (distance in meters from projectOnSegment)
         for (let i = 0; i < coords.length - 1; i++) {
           const proj = projectOnSegment(lon, lat, coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
-          if (proj.dist < bestDist) {
-            bestDist = proj.dist;
-            bestProj = proj;
+          const isPerpendicular = proj.t > 0.01 && proj.t < 0.99; // true perpendicular (not clamped to endpoint)
+          if (isPerpendicular && proj.dist < bestPerpDist) {
+            bestPerpDist = proj.dist;
+            bestPerpProj = proj;
+          } else if (!isPerpendicular && proj.dist < bestEndDist) {
+            bestEndDist = proj.dist;
+            bestEndProj = proj;
           }
         }
       }
 
-      // projectOnSegment now returns distance in meters
+      // Prefer true perpendicular; fall back to endpoint if none found
+      const bestProj = bestPerpProj || bestEndProj;
+      const bestDist = bestPerpProj ? bestPerpDist : bestEndDist;
+
       const maxDist = 100; // meters
       const offsetMeters = LS.getSnapDistance(); // already in meters
       if (bestProj && bestDist < maxDist) {
