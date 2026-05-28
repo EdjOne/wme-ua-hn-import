@@ -1266,6 +1266,12 @@ if (isNamedUnnamed) {
           if (snapResult) {
             snapLon = snapResult.lon;
             snapLat = snapResult.lat;
+          } else {
+            // No matching street segment found — skip RPP creation
+            const msg = `Не знайдено сегмент "${feature.streetRaw || feature.street}" — RPP не створено`;
+            console.warn('[UA-RPP]', msg);
+            toast(msg, 'warning');
+            return;
           }
         }
 
