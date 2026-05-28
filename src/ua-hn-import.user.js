@@ -199,6 +199,18 @@
     return i >= minPrefix;
   }
 
+  // Find WME numeric street ID by street name (with fuzzy matching)
+  function findWmeStreetId(streetName) {
+    const allStreets = wmeSDK.DataModel.Streets.getAll();
+    const target = normalizeForComparison(cleanStreetName(streetName));
+    for (const s of allStreets) {
+      if (fuzzyStreetMatch(normalizeForComparison(cleanStreetName(s.name || '')), target)) {
+        return s.id;
+      }
+    }
+    return null;
+  }
+
   function snapToNearestRoad(lon, lat, streetName) {
     try {
       const allSegments = wmeSDK.DataModel.Segments.getAll();
@@ -1290,10 +1302,12 @@ if (isNamedUnnamed) {
           venueId: String(venueId),
           name: houseNumber
         });
+        // Resolve street name to WME numeric ID (streetId is normalized string, updateAddress needs number)
+        const resolvedStreetId = findWmeStreetId(feature.streetRaw || feature.street);
         wmeSDK.DataModel.Venues.updateAddress({
           venueId: String(venueId),
           houseNumber: houseNumber,
-          streetId: streetId
+          streetId: resolvedStreetId || streetId
         });
         wmeSDK.DataModel.Venues.updateVenueIsResidential({
           venueId: String(venueId),
