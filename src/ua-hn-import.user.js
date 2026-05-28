@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.58
+// @version      1.8.59
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -18,6 +18,7 @@
 // @connect      api.visicom.ua
 // @connect      overpass.kumi.systems
 // @connect      overpass.openstreetmap.ru
+// @connect      overpass.openstreetmap.org
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM
@@ -48,9 +49,10 @@
   const OVERPASS_APIS = [
     'https://overpass.kumi.systems/api/interpreter',
     'https://overpass-api.de/api/interpreter',
-    'https://overpass.openstreetmap.ru/api/interpreter'
+    'https://overpass.openstreetmap.ru/api/interpreter',
+    'https://overpass.openstreetmap.org/api/interpreter'
   ];
-  const OVERPASS_TIMEOUT = 30000;
+  const OVERPASS_TIMEOUT = 60000;
 
 
 
@@ -1344,10 +1346,8 @@ if (isNamedUnnamed) {
             return fetchAddressesWaze(centerLat, centerLon, radius);
           });
 
-          // Add OSM to fetch promises if selected
-          if (sources.includes('osm')) {
-            fetchPromises.push(fetchAddressesOSM(centerLat, centerLon, radius));
-          }
+          // OSM fetched separately below (async), only waze/visicom in Promise.all
+          // (previously this incorrectly added OSM to Promise.all causing double-fetch)
 
           Promise.all(fetchPromises)
             .then(results => {
@@ -1468,8 +1468,9 @@ if (isNamedUnnamed) {
                     });
                   }
 
-applyFeatureFilter();
+                  applyFeatureFilter();
                   statusDiv.innerHTML = `Завантажено ${lastFeatures.length} адрес (включаючи OSM).<br/><b>Клікніть на номер на карті, щоб додати!</b>`;
+                  loading.style.display = 'none';
                 }).catch(err => {
                   console.warn('[OSM] Async fetch failed:', err);
                   loading.style.display = 'none';
@@ -1487,12 +1488,13 @@ applyFeatureFilter();
               setChecked(chkVis, true);
               LS.setLayerVisible(true);
 
-// For OSM-only: don't show final status yet, wait for OSM fetch
-              loading.style.display = 'none';
+              // For primary sources: hide loading now, OSM will update status later
               if (hasPrimarySources) {
+                loading.style.display = 'none';
                 statusDiv.innerHTML = `Завантажено ${lastFeatures.length} адрес.<br/>` +
                   `<b>Клікніть на номер на карті, щоб додати!</b>`;
               }
+              // OSM-only: loading stays visible until OSM fetch completes (lines 1473-1480)
               resolve();
             })
             .catch(err => {
