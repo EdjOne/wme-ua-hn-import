@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.60
+// @version      1.8.61
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -16,14 +16,10 @@
 // @exclude      https://www.waze.com/user/editor*
 // @connect      stat.waze.com.ua
 // @connect      api.visicom.ua
-// @connect      nominatim.openstreetmap.org
-// @connect      overpass.kumi.systems
-// @connect      overpass.openstreetmap.ru
-// @connect      overpass.openstreetmap.org
-// @connect      maps.mail.ru
+// @connect      api.openstreetmap.org
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
-// @grant        GM
+// @grant        GM_info
 // @license      MIT
 // @noframes
 // ==/UserScript==
@@ -469,12 +465,276 @@
     });
   }
 
-// OSM временно отключен - все сервера Overpass недоступны из-за CORS блокировки в Waze
+// Fetch addresses from OSM API (api.openstreetmap.org - works without CORS issues)
   function fetchAddressesOSM(centerLat, centerLon, radius) {
-    return new Promise((resolve) => {
-      console.warn('[OSM] Відключено - Overpass сервери заблоковані CORS в Waze браузері');
-      resolve({ features: [], streets: {}, streetNames: {} });
+    return new Promise((resolve, reject) => {
+      // Convert radius (meters) to degrees (approx: 1° = 111km)
+      const deg = (Math.round(radius) / 111000) * 1.15; // slightly larger radius for better coverage
+      const bbox = `${centerLon - deg},${centerLat - deg},${centerLon + deg},${centerLat + deg}`;
+      const url = `https://api.openstreetmap.org/api/0.6/map?bbox=${bbox}`;
+
+      console.log(`[OSM] Fetching ${url}`);
+
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url: url,
+        timeout: 60000,
+        headers: {
+          'Accept': 'application/json'
+        },
+        onload: function (response) {
+          try {
+            const respText = response.responseText || '';
+
+            // Check for HTML error
+            if (respText.trim().startsWith('<')) {
+              console.warn('[OSM] Server returned HTML error, trying XML parse...');
+              // Try parsing XML - OSM API returns XML by default
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(respText, 'text/xml');
+              const ns = xmlDoc.documentElement;
+              if (ns && ns.tagName === 'osm') {
+                parseOSMXML(ns, resolve);
+                return;
+              }
+              reject(new Error('OSM server error'));
+              return;
+            }
+
+            // Try JSON first
+            try {
+              const data = JSON.parse(respText);
+              processOSMElements(data.elements || [], resolve);
+            } catch (e) {
+              // Try XML
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(respText, 'text/xml');
+              const ns = xmlDoc.documentElement;
+              if (ns && ns.tagName === 'osm') {
+                parseOSMXML(ns, resolve);
+              } else {
+                reject(new Error('Unknown OSM response format'));
+              }
+            }
+          } catch (err) {
+            reject(err);
+          }
+        },
+        onerror: function (err) {
+          reject(new Error('OSM network error: ' + err));
+        },
+        ontimeout: function () {
+          reject(new Error('OSM timeout'));
+        }
+      });
     });
+  }
+
+  // Parse OSM XML format
+  function parseOSMXML(xmlDoc, resolve) {
+    const features = [];
+    const streetNames = {};
+    const streets = {};
+
+    // Parse nodes
+    const nodes = xmlDoc.querySelectorAll('node');
+    const nodeMap = {};
+
+    nodes.forEach(node => {
+      const lat = parseFloat(node.getAttribute('lat'));
+      const lon = parseFloat(node.getAttribute('lon'));
+      const id = node.getAttribute('id');
+      const tags = {};
+      node.querySelectorAll('tag').forEach(tag => {
+        tags[tag.getAttribute('k')] = tag.getAttribute('v');
+      });
+
+      const houseNumber = tags['addr:housenumber'];
+      const street = tags['addr:street'] || tags['addr:full'];
+
+      if (houseNumber && street) {
+        const streetId = normalizeStreetName(street);
+        if (!streets[street]) {
+          streets[street] = streetId;
+          streetNames[streetId] = street;
+        }
+        features.push({
+          number: String(houseNumber).toLowerCase(),
+          street: streetId,
+          streetRaw: street,
+          houseNumberRaw: String(houseNumber),
+          lat: lat,
+          lon: lon,
+          source: 'osm'
+        });
+      }
+
+      if (node.querySelectorAll('tag').length > 0) {
+        // ways reference nodes by ID, store lat/lon for later
+      }
+      nodeMap[id] = { lat, lon };
+    });
+
+    // Parse ways + center (ways only for addr data)
+    const ways = xmlDoc.querySelectorAll('way');
+    ways.forEach(way => {
+      const tags = {};
+      way.querySelectorAll('tag').forEach(tag => {
+        tags[tag.getAttribute('k')] = tag.getAttribute('v');
+      });
+
+      const houseNumber = tags['addr:housenumber'];
+      const street = tags['addr:street'] || tags['addr:full'];
+
+      if (houseNumber && street) {
+        // Calculate center from nd references
+        const ndRefs = way.querySelectorAll('nd');
+        let sumLat = 0, sumLon = 0, count = 0;
+        ndRefs.forEach(nd => {
+          const ref = nd.getAttribute('ref');
+          if (nodeMap[ref]) {
+            sumLat += nodeMap[ref].lat;
+            sumLon += nodeMap[ref].lon;
+            count++;
+          }
+        });
+
+        const lat = count > 0 ? sumLat / count : null;
+        const lon = count > 0 ? sumLon / count : null;
+
+        if (lat != null && lon != null) {
+          const streetId = normalizeStreetName(street);
+          if (!streets[street]) {
+            streets[street] = streetId;
+            streetNames[streetId] = street;
+          }
+          features.push({
+            number: String(houseNumber).toLowerCase(),
+            street: streetId,
+            streetRaw: street,
+            houseNumberRaw: String(houseNumber),
+            lat: lat,
+            lon: lon,
+            source: 'osm'
+          });
+        }
+      }
+    });
+
+    // Parse relations for addr tags
+    const relations = xmlDoc.querySelectorAll('relation');
+    relations.forEach(rel => {
+      const tags = {};
+      rel.querySelectorAll('tag').forEach(tag => {
+        tags[tag.getAttribute('k')] = tag.getAttribute('v');
+      });
+
+      const houseNumber = tags['addr:housenumber'];
+      const street = tags['addr:street'] || tags['addr:full'];
+
+      if (houseNumber && street) {
+        // For relations, find center via members
+        const members = rel.querySelectorAll('member');
+        let sumLat = 0, sumLon = 0, count = 0;
+        members.forEach(member => {
+          const ref = member.getAttribute('ref');
+          if (nodeMap[ref]) {
+            sumLat += nodeMap[ref].lat;
+            sumLon += nodeMap[ref].lon;
+            count++;
+          }
+        });
+
+        const lat = count > 0 ? sumLat / count : null;
+        const lon = count > 0 ? sumLon / count : null;
+
+        if (lat != null && lon != null) {
+          const streetId = normalizeStreetName(street);
+          if (!streets[street]) {
+            streets[street] = streetId;
+            streetNames[streetId] = street;
+          }
+          features.push({
+            number: String(houseNumber).toLowerCase(),
+            street: streetId,
+            streetRaw: street,
+            houseNumberRaw: String(houseNumber),
+            lat: lat,
+            lon: lon,
+            source: 'osm'
+          });
+        }
+      }
+    });
+
+    console.log(`[OSM] Loaded ${features.length} addresses (XML)`);
+    resolve({ features, streets, streetNames });
+  }
+
+  // Process OSM JSON elements
+  function processOSMElements(elements, resolve) {
+    const features = [];
+    const streetNames = {};
+    const streets = {};
+
+    // First pass: collect all node coordinates
+    const nodeMap = {};
+    for (const el of elements) {
+      if (el.type === 'node') {
+        nodeMap[el.id] = { lat: el.lat, lon: el.lon };
+      }
+    }
+
+    for (const el of elements) {
+      const tags = el.tags || {};
+      const houseNumber = tags['addr:housenumber'];
+      const street = tags['addr:street'] || tags['addr:full'];
+
+      if (!houseNumber || !street) continue;
+
+      let lat, lon;
+      if (el.type === 'node') {
+        lat = el.lat;
+        lon = el.lon;
+      } else if (el.type === 'way' || el.type === 'relation') {
+        // Calculate center from member/nd nodes
+        const refs = el.nodes || (el.members ? el.members.map(m => (typeof m === 'object') ? m.ref || m.node : m).filter(Boolean) : []);
+        let sumLat = 0, sumLon = 0, count = 0;
+        for (const ref of refs) {
+          if (nodeMap[ref]) {
+            sumLat += nodeMap[ref].lat;
+            sumLon += nodeMap[ref].lon;
+            count++;
+          }
+        }
+        if (count === 0) continue;
+        lat = sumLat / count;
+        lon = sumLon / count;
+      } else {
+        continue;
+      }
+
+      if (lat == null || lon == null) continue;
+
+      const streetId = normalizeStreetName(street);
+      if (!streets[street]) {
+        streets[street] = streetId;
+        streetNames[streetId] = street;
+      }
+
+      features.push({
+        number: String(houseNumber).toLowerCase(),
+        street: streetId,
+        streetRaw: street,
+        houseNumberRaw: String(houseNumber),
+        lat: lat,
+        lon: lon,
+        source: 'osm'
+      });
+    }
+
+    console.log(`[OSM] Loaded ${features.length} addresses (JSON)`);
+    resolve({ features, streets, streetNames });
   }
 
   function init() {
@@ -967,7 +1227,7 @@ if (isNamedUnnamed) {
             <span style="color:#0066cc;font-weight:bold;">Джерела:</span><br/>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze"> Waze (зелений)</label>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-visicom"> Visicom (жовтий)</label>
-            <label style="margin-right:12px;opacity:0.5;"><input type="checkbox" id="qhnua-src-osm" disabled> OSM (недоступно)</label>
+            <label><input type="checkbox" id="qhnua-src-osm"> OSM (сірий)</label>
           </div>
           <div style="margin:6px 0;font-size:12px;">
             <label style="display:block;margin-bottom:4px;">API ключ Visicom (<a href="https://api.visicom.ua/accounts/forms?page=register" target="_blank" style="color:#0066cc;text-decoration:none;">Отримати тут</a>):</label>
