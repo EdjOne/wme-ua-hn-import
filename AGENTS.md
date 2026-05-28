@@ -144,5 +144,6 @@ python3 wme_bot.py --api
 - **v1.8.60**: Version bump, added maps.mail.ru fallback, timeout 120s, OSM temporarily disabled (blocked by CORS)
 - **v1.8.61**: OSM переключён на api.openstreetmap.org (вместо Overpass) - работает без CORS, использует XML/JSON bbox запрос
 - **v1.8.62**: Додано чекбокс "Підтягувати до дороги" - якщо маркер ≤100м від сегмента, RPP створюється на 10м від дороги (в бік маркера)
+- **v1.8.63**: Вамп білду
 
 P.S. Все HN заменены на RPP (UA-RPP).
