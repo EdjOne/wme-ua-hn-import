@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.65
+// @version      1.8.66
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -149,29 +149,50 @@
     return String(name).toLowerCase().replace(/\s+/g, '_');
   }
 
-  // Projection of point onto line segment (returns lon, lat on segment)
+  // Projection of point onto line segment with cosine correction for lat/lon
+  // Returns projected lon, lat and distance in meters
   function projectOnSegment(px, py, x1, y1, x2, y2) {
-    const dx = x2 - x1, dy = y2 - y1;
+    // Average latitude for cosine correction
+    const avgLat = (y1 + y2 + py) / 3;
+    const cosLat = Math.cos(avgLat * Math.PI / 180);
+
+    // Work in approximate meter-space (x = lon * cos(lat), y = lat)
+    const cx = px * cosLat, cy = py;
+    const cx1 = x1 * cosLat, cy1 = y1;
+    const cx2 = x2 * cosLat, cy2 = y2;
+
+    const dx = cx2 - cx1, dy = cy2 - cy1;
     const len2 = dx * dx + dy * dy;
-    if (len2 === 0) return { lon: x1, lat: y1, dist: Math.hypot(px - x1, py - y1) };
-    let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+    if (len2 === 0) {
+      const mDx = (px - x1) * cosLat * 111320, mDy = (py - y1) * 111320;
+      return { lon: x1, lat: y1, dist: Math.hypot(mDx, mDy) };
+    }
+
+    let t = ((cx - cx1) * dx + (cy - cy1) * dy) / len2;
     t = Math.max(0, Math.min(1, t));
-    const lon = x1 + t * dx, lat = y1 + t * dy;
-    const dist = Math.hypot(px - lon, py - lat);
-    return { lon, lat, dist };
+
+    // Convert back to lon/lat
+    const projLon = x1 + t * (x2 - x1);
+    const projLat = y1 + t * (y2 - y1);
+
+    // Distance in meters
+    const meterDx = (px - projLon) * cosLat * 111320;
+    const meterDy = (py - projLat) * 111320;
+    const dist = Math.hypot(meterDx, meterDy);
+
+    return { lon: projLon, lat: projLat, dist };
   }
 
   // Convert meters to degrees (approx)
   function metersToDeg(m) { return m / 111320; }
 
-  // Snap marker toward nearest road segment, offset 10m from road
+  // Snap marker toward nearest road segment, offset along perpendicular
   function snapToNearestRoad(lon, lat, streetId) {
     try {
       const allSegments = wmeSDK.DataModel.Segments.getAll();
-      let bestDist = Infinity, bestProj = null, bestSeg = null;
+      let bestDist = Infinity, bestProj = null;
 
       for (const seg of allSegments) {
-        // Only consider segments matching this street
         const matchesStreet = seg.primaryStreetId === streetId ||
           (seg.alternateStreetIds || []).includes(streetId);
         if (!matchesStreet) continue;
@@ -179,37 +200,39 @@
         const coords = seg.geometry?.coordinates;
         if (!coords || coords.length < 2) continue;
 
-        // Find closest point on this segment line
+        // Find closest point on this segment line (distance in meters from projectOnSegment)
         for (let i = 0; i < coords.length - 1; i++) {
           const proj = projectOnSegment(lon, lat, coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
           if (proj.dist < bestDist) {
             bestDist = proj.dist;
             bestProj = proj;
-            bestSeg = { coordA: coords[i], coordB: coords[i+1] };
           }
         }
       }
 
-      // If nearest road is within 100m, offset from road toward marker
-      const maxDist = metersToDeg(100);
-      const offsetDist = metersToDeg(LS.getSnapDistance());
+      // projectOnSegment now returns distance in meters
+      const maxDist = 100; // meters
+      const offsetMeters = LS.getSnapDistance(); // already in meters
       if (bestProj && bestDist < maxDist) {
-        // Vector from projection point toward original marker
-        const dx = lon - bestProj.lon;
-        const dy = lat - bestProj.lat;
-        const dist = Math.hypot(dx, dy);
-        if (dist < offsetDist) {
-          // Already closer than offset distance to the road - snap back to offset
-          return {
-            lon: bestProj.lon + (dx / dist) * offsetDist,
-            lat: bestProj.lat + (dy / dist) * offsetDist
-          };
-        }
-        // Move toward original point by offsetDist
-        return {
-          lon: bestProj.lon + (dx / dist) * offsetDist,
-          lat: bestProj.lat + (dy / dist) * offsetDist
-        };
+        const avgLat = (lat + bestProj.lat) / 2;
+        const cosLat = Math.cos(avgLat * Math.PI / 180);
+
+        // Vector from projection to building in meter-space
+        const meterDx = (lon - bestProj.lon) * cosLat * 111320;
+        const meterDy = (lat - bestProj.lat) * 111320;
+        const distMeters = Math.hypot(meterDx, meterDy);
+
+        if (distMeters < 0.01) return null; // too close to determine direction
+
+        // Unit vector in meter-space, scale to offset distance
+        const unitX = meterDx / distMeters;
+        const unitY = meterDy / distMeters;
+
+        // Place RPP at offsetMeters from road toward building (back to lon/lat)
+        const offsetLon = bestProj.lon + (unitX * offsetMeters) / (cosLat * 111320);
+        const offsetLat = bestProj.lat + (unitY * offsetMeters) / 111320;
+
+        return { lon: offsetLon, lat: offsetLat };
       }
     } catch (e) {
       console.warn('[UA-RPP] snapToRoad error:', e.message);
