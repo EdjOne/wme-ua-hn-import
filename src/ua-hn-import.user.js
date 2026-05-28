@@ -16,6 +16,7 @@
 // @exclude      https://www.waze.com/user/editor*
 // @connect      stat.waze.com.ua
 // @connect      api.visicom.ua
+// @connect      nominatim.openstreetmap.org
 // @connect      overpass.kumi.systems
 // @connect      overpass.openstreetmap.ru
 // @connect      overpass.openstreetmap.org
@@ -53,7 +54,9 @@
     'https://overpass.openstreetmap.ru/api/interpreter',
     'https://overpass.openstreetmap.org/api/interpreter',
     'https://overpass-api.de/api/interpreter',
-    'https://maps.mail.ru/osm2/api/interpreter'
+    'https://maps.mail.ru/osm2/api/interpreter',
+    'https://proxy.http.net/?https://overpass-api.de/api/interpreter',
+    'https://r.jina.ai/http://overpass-api.de/api/interpreter'
   ];
   const OVERPASS_TIMEOUT = 120000;
 
@@ -466,122 +469,11 @@
     });
   }
 
-// Fetch addresses from OSM Overpass API with fallback servers
+// OSM временно отключен - все сервера Overpass недоступны из-за CORS блокировки в Waze
   function fetchAddressesOSM(centerLat, centerLon, radius) {
-    return new Promise((resolve, reject) => {
-      const query = `
-        [out:json][timeout:60];
-        (
-          node["addr:housenumber"](around:${Math.round(radius)},${centerLat},${centerLon});
-          way["addr:housenumber"](around:${Math.round(radius)},${centerLat},${centerLon});
-        );
-        out center;
-      `;
-
-      // Try each API server in sequence
-      const tryFetch = (apiIndex) => {
-        const apiUrl = OVERPASS_APIS[apiIndex];
-        console.log(`[OSM] Trying server ${apiIndex + 1}/${OVERPASS_APIS.length}:`, apiUrl);
-
-        GM_xmlhttpRequest({
-          method: 'POST',
-          url: apiUrl,
-          timeout: OVERPASS_TIMEOUT,
-          data: 'data=' + encodeURIComponent(query),
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          onload: function (response) {
-            try {
-              const respText = response.responseText || '';
-              // Check for non-JSON (XML error) responses
-              if (respText.trim().startsWith('<?xml') || respText.trim().startsWith('<')) {
-                console.warn(`[OSM] Server ${apiIndex + 1} returned XML error, trying next...`);
-                if (apiIndex < OVERPASS_APIS.length - 1) {
-                  tryFetch(apiIndex + 1);
-                } else {
-                  reject(new Error('All OSM servers returned errors - server overload'));
-                }
-                return;
-              }
-              const data = JSON.parse(respText);
-
-              if (!data.elements || data.elements.length === 0) {
-                resolve({ features: [], streets: {}, streetNames: {} });
-                return;
-              }
-
-              const features = [];
-              const streetNames = {};
-              const streets = {};
-
-              for (const el of data.elements) {
-                const tags = el.tags || {};
-                const street = tags['addr:street'] || tags['addr:full'];
-                const houseNumber = tags['addr:housenumber'];
-
-                if (!houseNumber || !street) continue;
-
-                // Get coordinates (way has center, node has lat/lon)
-                let lat, lon;
-                if (el.type === 'way' && el.center) {
-                  lat = el.center.lat;
-                  lon = el.center.lon;
-                } else {
-                  lat = el.lat;
-                  lon = el.lon;
-                }
-
-                if (lat == null || lon == null) continue;
-
-                const streetId = normalizeStreetName(street);
-                if (!streets[street]) {
-                  streets[street] = streetId;
-                  streetNames[streetId] = street;
-                }
-
-                features.push({
-                  number: String(houseNumber).toLowerCase(),
-                  street: streetId,
-                  streetRaw: street,
-                  houseNumberRaw: String(houseNumber),
-                  lat: lat,
-                  lon: lon,
-                  source: 'osm'
-                });
-              }
-
-              console.log(`[OSM] Loaded ${features.length} addresses from server ${apiIndex + 1}`);
-              resolve({ features, streets, streetNames });
-            } catch (err) {
-              console.error(`[OSM] Server ${apiIndex + 1} error:`, err.message);
-              if (apiIndex < OVERPASS_APIS.length - 1) {
-                tryFetch(apiIndex + 1);
-              } else {
-                reject(err);
-              }
-            }
-          },
-          onerror: function (err) {
-            console.warn(`[OSM] Server ${apiIndex + 1} network error, trying next...`);
-            if (apiIndex < OVERPASS_APIS.length - 1) {
-              tryFetch(apiIndex + 1);
-            } else {
-              reject(new Error('All OSM servers unavailable'));
-            }
-          },
-          ontimeout: function () {
-            console.warn(`[OSM] Server ${apiIndex + 1} timeout, trying next...`);
-            if (apiIndex < OVERPASS_APIS.length - 1) {
-              tryFetch(apiIndex + 1);
-            } else {
-              reject(new Error('OSM API timeout on all servers'));
-            }
-          }
-        });
-      };
-
-      tryFetch(0);
+    return new Promise((resolve) => {
+      console.warn('[OSM] Відключено - Overpass сервери заблоковані CORS в Waze браузері');
+      resolve({ features: [], streets: {}, streetNames: {} });
     });
   }
 
@@ -1075,7 +967,7 @@ if (isNamedUnnamed) {
             <span style="color:#0066cc;font-weight:bold;">Джерела:</span><br/>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze"> Waze (зелений)</label>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-visicom"> Visicom (жовтий)</label>
-            <label><input type="checkbox" id="qhnua-src-osm"> OSM (оранжевий)</label>
+            <label style="margin-right:12px;opacity:0.5;"><input type="checkbox" id="qhnua-src-osm" disabled> OSM (недоступно)</label>
           </div>
           <div style="margin:6px 0;font-size:12px;">
             <label style="display:block;margin-bottom:4px;">API ключ Visicom (<a href="https://api.visicom.ua/accounts/forms?page=register" target="_blank" style="color:#0066cc;text-decoration:none;">Отримати тут</a>):</label>

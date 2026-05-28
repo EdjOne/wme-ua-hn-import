@@ -141,6 +141,6 @@ python3 wme_bot.py --api
 - **v1.8.53**: Replaced throw new Error with console.warn + toast + return — no more red console errors for normal situations (300m radius, Unnamed road, duplicates)
 - **v1.8.58**: Fixed bug where clicking Load without selecting any source would load Waze by default - now shows warning toast
 - **v1.8.59**: OSM async fetch (removed double-fetch from Promise.all), added 4th fallback server (overpass.openstreetmap.org), timeout increased to 60s
-- **v1.8.60**: Version bump, added maps.mail.ru fallback, timeout 120s
+- **v1.8.60**: Version bump, added maps.mail.ru fallback, timeout 120s, OSM temporarily disabled (blocked by CORS)
 
 P.S. Все HN заменены на RPP (UA-RPP).
