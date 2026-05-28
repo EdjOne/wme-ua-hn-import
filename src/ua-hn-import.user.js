@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.68
+// @version      1.8.69
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -188,16 +188,25 @@
   function metersToDeg(m) { return m / 111320; }
 
   // Snap marker toward nearest road segment, offset along perpendicular
-  function snapToNearestRoad(lon, lat, streetId) {
+  function snapToNearestRoad(lon, lat, streetName) {
     try {
       const allSegments = wmeSDK.DataModel.Segments.getAll();
       let bestPerpDist = Infinity, bestPerpProj = null; // true perpendiculars (t inside segment)
       let bestEndDist = Infinity, bestEndProj = null;   // endpoint fallbacks (t clamped to 0 or 1)
 
+      const normalizedTarget = normalizeForComparison(streetName);
+
       for (const seg of allSegments) {
-        const matchesStreet = seg.primaryStreetId === streetId ||
-          (seg.alternateStreetIds || []).includes(streetId);
-        if (!matchesStreet) continue;
+        // Match by street name (not ID — streetId is a normalized string, seg.primaryStreetId is numeric)
+        const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+        let matches = normalizeForComparison(segStreet?.name || '') === normalizedTarget;
+        if (!matches && seg.alternateStreetIds?.length) {
+          for (const altId of seg.alternateStreetIds) {
+            const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
+            if (normalizeForComparison(altStreet?.name || '') === normalizedTarget) { matches = true; break; }
+          }
+        }
+        if (!matches) continue;
 
         const coords = seg.geometry?.coordinates;
         if (!coords || coords.length < 2) continue;
@@ -1220,7 +1229,7 @@ if (isNamedUnnamed) {
         let snapLon = feature.lon;
         let snapLat = feature.lat;
         if (LS.getSnapToRoad()) {
-          const snapResult = snapToNearestRoad(feature.lon, feature.lat, streetId);
+          const snapResult = snapToNearestRoad(feature.lon, feature.lat, feature.streetRaw || feature.street);
           if (snapResult) {
             snapLon = snapResult.lon;
             snapLat = snapResult.lat;
