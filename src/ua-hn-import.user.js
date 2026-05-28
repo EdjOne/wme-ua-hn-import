@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.63
+// @version      1.8.64
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -190,16 +190,16 @@
         }
       }
 
-      // If nearest road is within 100m, offset 15m from road toward marker
+      // If nearest road is within 100m, offset from road toward marker
       const maxDist = metersToDeg(100);
-      const offsetDist = metersToDeg(10);
+      const offsetDist = metersToDeg(LS.getSnapDistance());
       if (bestProj && bestDist < maxDist) {
         // Vector from projection point toward original marker
         const dx = lon - bestProj.lon;
         const dy = lat - bestProj.lat;
         const dist = Math.hypot(dx, dy);
         if (dist < offsetDist) {
-          // Already closer than 15m to the road - snap back to offset
+          // Already closer than offset distance to the road - snap back to offset
           return {
             lon: bestProj.lon + (dx / dist) * offsetDist,
             lat: bestProj.lat + (dy / dist) * offsetDist
@@ -1304,7 +1304,7 @@ if (isNamedUnnamed) {
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="hn-no-duplicates">Не створювати дублікати</wz-checkbox>
             <wz-checkbox id="hn-lock-rank2">Заблокувати RPP (рівень 2)</wz-checkbox>
-            <wz-checkbox id="hn-snap-road">Підтягувати до дороги</wz-checkbox>
+            <span style="display:inline-flex;align-items:center;gap:6px;"><wz-checkbox id="hn-snap-road">Підтягувати до дороги</wz-checkbox><input id="hn-snap-dist" type="number" min="1" max="200" step="1" value="10" style="width:50px;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;" title="Відстань від дороги (м)"> м</span>
             <span style="font-size:12px;">Радіус (м): <input id="qhnua-buffer" type="number" min="0" step="50" style="width:80px;margin-left:6px"></span>
           </div>
           <div style="margin:6px 0;font-size:13px;">
@@ -1394,6 +1394,19 @@ if (isNamedUnnamed) {
           const on = isChecked(chkSnapRoad);
           setChecked(chkSnapRoad, !on);
           LS.setSnapToRoad(!on);
+        });
+      }
+
+      const snapDistEl = tabPane.querySelector('#hn-snap-dist');
+      if (snapDistEl) {
+        snapDistEl.value = String(LS.getSnapDistance());
+        snapDistEl.addEventListener('change', () => {
+          const val = Number(snapDistEl.value);
+          if (isNaN(val) || val < 1) {
+            snapDistEl.value = String(LS.getSnapDistance());
+            return;
+          }
+          LS.setSnapDistance(val);
         });
       }
 
