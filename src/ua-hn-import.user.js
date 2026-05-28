@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.66
+// @version      1.8.67
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -190,24 +190,30 @@
         }
       }
 
-      // If nearest road is within 100m, offset toward marker but not beyond it
+      // If nearest road is within 100m, offset perpendicular to road
       const maxDist = metersToDeg(100);
       const offsetDist = metersToDeg(LS.getSnapDistance());
-      if (bestProj && bestDist < maxDist) {
-        // Vector from projection point toward original marker
-        const dx = lon - bestProj.lon;
-        const dy = lat - bestProj.lat;
-        const dist = Math.hypot(dx, dy);
-        if (dist < offsetDist) {
-          // Marker is closer than offset distance - place RPP at marker
-          return { lon, lat };
+      if (bestProj && bestDist < maxDist && bestSeg) {
+        // Segment direction vector
+        const segDx = bestSeg.coordB[0] - bestSeg.coordA[0];
+        const segDy = bestSeg.coordB[1] - bestSeg.coordA[1];
+        // Normal (perpendicular) to segment
+        let nx = -segDy;  // rotate 90° CCW
+        let ny = segDx;
+        // Vector from projection toward original marker
+        const mx = lon - bestProj.lon;
+        const my = lat - bestProj.lat;
+        // Choose normal direction pointing toward marker
+        if (nx * mx + ny * my < 0) { nx = -nx; ny = -ny; }
+        // Normalize and scale to offset distance
+        const norm = Math.hypot(nx, ny);
+        if (norm > 0) {
+          return {
+            lon: bestProj.lon + (nx / norm) * offsetDist,
+            lat: bestProj.lat + (ny / norm) * offsetDist
+          };
         }
-        // Place RPP on the line between projection and marker, at offsetDist from projection
-        const ratio = offsetDist / dist;
-        return {
-          lon: bestProj.lon + dx * ratio,
-          lat: bestProj.lat + dy * ratio
-        };
+        return { lon: bestProj.lon, lat: bestProj.lat };
       }
     } catch (e) {
       console.warn('[UA-RPP] snapToRoad error:', e.message);
