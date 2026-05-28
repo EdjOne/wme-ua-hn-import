@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.68
+// @version      1.8.69
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -190,29 +190,40 @@
         }
       }
 
-      // If nearest road is within 100m, offset perpendicular to road
+      // If nearest road is within 100m, offset perpendicular to road (meter-accurate)
       const maxDist = metersToDeg(100);
-      const offsetDist = metersToDeg(LS.getSnapDistance());
       if (bestProj && bestDist < maxDist && bestSeg) {
-        // Road direction (tangent) at projection point
+        // Convert to meters accounting for latitude distortion
+        const latRad = bestProj.lat * Math.PI / 180;
+        const cosLat = Math.cos(latRad);
+        const metersPerLat = 111320;
+        const metersPerLon = 111320 * cosLat;
+
+        // Segment direction in meters
         const segDx = bestSeg.coordB[0] - bestSeg.coordA[0];
         const segDy = bestSeg.coordB[1] - bestSeg.coordA[1];
-        const segLen2 = segDx * segDx + segDy * segDy;
-        // Vector from projection to marker
+        const segDxM = segDx * metersPerLon;
+        const segDyM = segDy * metersPerLat;
+        const segLen2M = segDxM * segDxM + segDyM * segDyM;
+
+        // Vector from projection to marker in meters
         const mx = lon - bestProj.lon;
         const my = lat - bestProj.lat;
-        if (segLen2 > 0) {
-          // Project marker vector onto road tangent (parallel component)
-          const dot = (mx * segDx + my * segDy) / segLen2;
-          // Perpendicular component = marker vector - parallel component
-          let px = mx - dot * segDx;
-          let py = my - dot * segDy;
-          // Normalize and scale to offset distance
-          const perpLen = Math.hypot(px, py);
-          if (perpLen > 0) {
+        const mxM = mx * metersPerLon;
+        const myM = my * metersPerLat;
+
+        if (segLen2M > 0) {
+          // Parallel component along road (in meters)
+          const dot = (mxM * segDxM + myM * segDyM) / segLen2M;
+          // Perpendicular component (in meters)
+          const pxM = mxM - dot * segDxM;
+          const pyM = myM - dot * segDyM;
+          const perpLenM = Math.hypot(pxM, pyM);
+          if (perpLenM > 0) {
+            const distM = LS.getSnapDistance();
             return {
-              lon: bestProj.lon + (px / perpLen) * offsetDist,
-              lat: bestProj.lat + (py / perpLen) * offsetDist
+              lon: bestProj.lon + (pxM / perpLenM) * distM / metersPerLon,
+              lat: bestProj.lat + (pyM / perpLenM) * distM / metersPerLat
             };
           }
         }
