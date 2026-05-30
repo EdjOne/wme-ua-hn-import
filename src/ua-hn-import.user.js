@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.70
+// @version      1.8.71
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1334,12 +1334,13 @@ if (isNamedUnnamed) {
           venueId: String(venueId),
           name: houseNumber
         });
-        // Resolve street name to WME numeric ID (streetId is normalized string, updateAddress needs number)
-        const resolvedStreetId = findWmeStreetId(feature.streetRaw || feature.street);
+        // Use streetId from nearest segment (already resolved to WME numeric ID)
+        // Do NOT use findWmeStreetId() here — it searches globally and can return
+        // a same-named street from a different settlement/city
         wmeSDK.DataModel.Venues.updateAddress({
           venueId: String(venueId),
           houseNumber: houseNumber,
-          streetId: resolvedStreetId || streetId
+          streetId: streetId
         });
         wmeSDK.DataModel.Venues.updateVenueIsResidential({
           venueId: String(venueId),
