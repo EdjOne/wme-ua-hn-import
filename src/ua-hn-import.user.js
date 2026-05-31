@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.71
+// @version      1.8.72
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -577,7 +577,8 @@
     return new Promise((resolve, reject) => {
       const apiKey = LS.getVisicomKey();
       if (!apiKey) {
-        reject(new Error('API ключ Visicom не встановлено'));
+        toast('⚠️ Visicom: API ключ не встановлено.', 'warning');
+        resolve({ features: [], streets: {}, streetNames: {} });
         return;
       }
 
@@ -606,7 +607,13 @@
           // Check HTTP status
           if (response.status >= 400) {
             console.error('[Visicom] HTTP error:', response.status, response.responseJSON);
-            reject(new Error(`Visicom API error: ${response.status}`));
+            if (response.status === 403) {
+              toast('⚠️ Visicom API: ключ недійсний або закінчився (403). Оновіть ключ або використовуйте інше джерело.', 'error');
+            } else {
+              toast(`⚠️ Visicom API: помилка ${response.status}. Спробуйте інше джерело.`, 'error');
+            }
+            // Resolve with empty result instead of rejecting — don't crash the whole load
+            resolve({ features: [], streets: {}, streetNames: {} });
             return;
           }
           try {
@@ -645,10 +652,12 @@
         },
         onerror: function(err) {
           console.error('[Visicom] Network error:', err);
-          reject(new Error('Visicom API error: network error'));
+          toast('⚠️ Visicom API: помилка мережі. Перевірте з\'єднання.', 'error');
+          resolve({ features: [], streets: {}, streetNames: {} });
         },
         ontimeout: function() {
-          reject(new Error('Visicom API timeout'));
+          toast('⚠️ Visicom API: таймаут запиту.', 'error');
+          resolve({ features: [], streets: {}, streetNames: {} });
         }
       });
     });
@@ -1886,8 +1895,9 @@ if (isNamedUnnamed) {
               console.error('[UA-RPP] Помилка API:', err);
               loading.style.display = 'none';
               if (loadId === currentLoadId) {
-                statusDiv.textContent = 'Помилка отримання даних. Перевірте консоль.';
-                toast('Помилка отримання даних адрес.', 'error');
+                const msg = err.message || 'Невідома помилка';
+                statusDiv.textContent = `Помилка: ${msg}`;
+                toast(`❌ Помилка завантаження: ${msg}`, 'error');
               }
               resolve();
             });
