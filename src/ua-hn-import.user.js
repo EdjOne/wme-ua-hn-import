@@ -1336,10 +1336,12 @@ if (isNamedUnnamed) {
         };
 
         // Create venue(s): RPP only or POI + RPP depending on checkbox
-        const createVenue = (residential) => {
+        const createVenue = (residential, geometryOverride) => {
+          const g = geometryOverride || geometry;
+          const coords = g.coordinates;
           const vid = wmeSDK.DataModel.Venues.addVenue({
             category: 'OTHER',
-            geometry: geometry
+            geometry: g
           });
           wmeSDK.DataModel.Venues.updateVenue({
             venueId: String(vid),
@@ -1363,7 +1365,7 @@ if (isNamedUnnamed) {
               isExit: true,
               isPrimary: true,
               name: '',
-              point: { type: 'Point', coordinates: [snapLon, snapLat] }
+              point: { type: 'Point', coordinates: [coords[0], coords[1]] }
             }]
           });
           return vid;
@@ -1371,8 +1373,14 @@ if (isNamedUnnamed) {
 
         let venueId;
         if (LS.getCreatePOI()) {
-          createVenue(false); // POI
-          venueId = createVenue(true); // RPP
+          // Смещаем POI на ~5м на запад, чтобы маркеры не накладывались
+          const poiOffset = -0.000065;
+          const poiGeometry = {
+            type: 'Point',
+            coordinates: [snapLon + poiOffset, snapLat]
+          };
+          createVenue(false, poiGeometry); // POI со смещением
+          venueId = createVenue(true); // RPP на месте
         } else {
           venueId = createVenue(true); // RPP only
         }
