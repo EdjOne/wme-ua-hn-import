@@ -1373,8 +1373,8 @@ if (isNamedUnnamed) {
 
         let venueId;
         if (LS.getCreatePOI()) {
-          // Смещаем POI на ~5м на запад, чтобы маркеры не накладывались
-          const poiOffset = -0.000065;
+          // Смещаем POI на ~2м на запад, чтобы маркеры не накладывались
+          const poiOffset = -0.000026;
           const poiGeometry = {
             type: 'Point',
             coordinates: [snapLon + poiOffset, snapLat]
