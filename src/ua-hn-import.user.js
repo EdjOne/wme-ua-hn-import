@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.72
+// @version      1.8.73
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -102,7 +102,9 @@
     getSnapToRoad()   { return localStorage.getItem('qhnua-snap-road') === '1'; },
     setSnapToRoad(v)  { localStorage.setItem('qhnua-snap-road', v ? '1' : '0'); },
     getSnapDistance() { return Number(localStorage.getItem('qhnua-snap-dist') ?? '20'); },
-    setSnapDistance(v){ localStorage.setItem('qhnua-snap-dist', String(v)); }
+    setSnapDistance(v){ localStorage.setItem('qhnua-snap-dist', String(v)); },
+    getCreatePOI()    { return localStorage.getItem('qhnua-create-poi') === '1'; },
+    setCreatePOI(v)   { localStorage.setItem('qhnua-create-poi', v ? '1' : '0'); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -1333,42 +1335,49 @@ if (isNamedUnnamed) {
           coordinates: [snapLon, snapLat]
         };
 
-        // Create venue first (WME Venues API always creates POI, then we convert to RPP)
-        const venueId = wmeSDK.DataModel.Venues.addVenue({
-          category: 'OTHER',
-          geometry: geometry
-        });
-        
-        wmeSDK.DataModel.Venues.updateVenue({
-          venueId: String(venueId),
-          name: houseNumber
-        });
-        // Use streetId from nearest segment (already resolved to WME numeric ID)
-        // Do NOT use findWmeStreetId() here — it searches globally and can return
-        // a same-named street from a different settlement/city
-        wmeSDK.DataModel.Venues.updateAddress({
-          venueId: String(venueId),
-          houseNumber: houseNumber,
-          streetId: streetId
-        });
-        wmeSDK.DataModel.Venues.updateVenueIsResidential({
-          venueId: String(venueId),
-          isResidential: true
-        });
+        // Create venue(s): RPP only or POI + RPP depending on checkbox
+        const createVenue = (residential) => {
+          const vid = wmeSDK.DataModel.Venues.addVenue({
+            category: 'OTHER',
+            geometry: geometry
+          });
+          wmeSDK.DataModel.Venues.updateVenue({
+            venueId: String(vid),
+            name: houseNumber
+          });
+          wmeSDK.DataModel.Venues.updateAddress({
+            venueId: String(vid),
+            houseNumber: houseNumber,
+            streetId: streetId
+          });
+          if (residential) {
+            wmeSDK.DataModel.Venues.updateVenueIsResidential({
+              venueId: String(vid),
+              isResidential: true
+            });
+          }
+          wmeSDK.DataModel.Venues.replaceNavigationPoints({
+            venueId: String(vid),
+            navigationPoints: [{
+              isEntry: true,
+              isExit: true,
+              isPrimary: true,
+              name: '',
+              point: { type: 'Point', coordinates: [snapLon, snapLat] }
+            }]
+          });
+          return vid;
+        };
 
-        // Add entry point for navigation
-        wmeSDK.DataModel.Venues.replaceNavigationPoints({
-          venueId: String(venueId),
-          navigationPoints: [{
-            isEntry: true,
-            isExit: true,
-            isPrimary: true,
-            name: '',
-            point: { type: 'Point', coordinates: [snapLon, snapLat] }
-          }]
-        });
+        let venueId;
+        if (LS.getCreatePOI()) {
+          createVenue(false); // POI
+          venueId = createVenue(true); // RPP
+        } else {
+          venueId = createVenue(true); // RPP only
+        }
 
-        // Lock to level 2 if enabled and user has rank > 0
+        // Lock last venue to level 2 if enabled and user has rank > 0
         if (LS.getLockRank2() && wmeSDK.State?.getUserInfo) {
           try {
             const userInfo = wmeSDK.State.getUserInfo();
@@ -1400,9 +1409,9 @@ if (isNamedUnnamed) {
         feature.conflict = false;
         applyFeatureFilter();
 
-        toast(`Додано RPP ${houseNumber} 🏠`, 'success');
+        toast(`Додано ${LS.getCreatePOI() ? 'POI + RPP' : 'RPP'} ${houseNumber} 🏠`, 'success');
       } catch (err) {
-        console.error('[UA-RPP] Помилка додавання RPP:', err);
+        console.error('[UA-RPP] Помилка додавання', err);
         toast(err.message || 'Помилка додавання RPP', 'error');
         lastRestriction = { number: houseNumber, reason: err.message };
         if (restrictionsDiv) {
@@ -1439,6 +1448,7 @@ if (isNamedUnnamed) {
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="hn-no-duplicates">Не створювати дублікати</wz-checkbox>
             <wz-checkbox id="hn-lock-rank2">Заблокувати RPP (рівень 2)</wz-checkbox>
+            <wz-checkbox id="hn-create-poi">Створити POI + RPP</wz-checkbox>
             <span style="display:inline-flex;align-items:center;gap:6px;"><wz-checkbox id="hn-snap-road">Підтягувати до дороги</wz-checkbox><input id="hn-snap-dist" type="number" min="1" max="200" step="1" value="20" style="width:50px;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;" title="Відстань від дороги (м)"> м</span>
             <span style="color:#0066cc;font-weight:bold;">Джерела:</span> <span style="font-size:12px;">Зона пошуку <input id="qhnua-buffer" type="number" min="0" step="50" style="width:60px;margin-left:2px;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;"> м</span><br/>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze"> Waze (зелений)</label>
@@ -1516,6 +1526,16 @@ if (isNamedUnnamed) {
           const on = isChecked(chkLockRank2);
           setChecked(chkLockRank2, !on);
           LS.setLockRank2(!on);
+        });
+      }
+
+      const chkCreatePOI = tabPane.querySelector('#hn-create-poi');
+      if (chkCreatePOI) {
+        setChecked(chkCreatePOI, LS.getCreatePOI());
+        chkCreatePOI.addEventListener('click', () => {
+          const on = isChecked(chkCreatePOI);
+          setChecked(chkCreatePOI, !on);
+          LS.setCreatePOI(!on);
         });
       }
 
