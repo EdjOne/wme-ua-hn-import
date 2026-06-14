@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.73
+// @version      1.8.74
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1118,6 +1118,13 @@
       }
 
       if (!bestFeature) return;
+
+      // Shift+click = batch create all visible markers of the same source
+      if (evt.shiftKey) {
+        batchCreateRPP(bestFeature.source || 'waze');
+        return;
+      }
+
       onFeatureClick(bestFeature);
     }
 
@@ -1172,261 +1179,338 @@
 
     // === End Map Tooltip ===
 
-    function onFeatureClick(feature) {
-      if (feature.processed) return;
-      if (typeof feature.lat !== 'number' || typeof feature.lon !== 'number' || isNaN(feature.lat) || isNaN(feature.lon)) {
-        console.warn('[UA-RPP] Invalid coordinates for feature:', feature);
-        return;
-      }
-
-      const houseNumber = normalizeHouseNumber(feature.number);
-      const featureLon = feature.lon;
-      const featureLat = feature.lat;
-
-      try {
-        // Find the nearest segment to get the street
-        const segments = wmeSDK.DataModel.Segments.getAll();
-        
-        let nearestStreetId = null;
-        let minDist = Infinity;
-        
-        // Calculate distance to segment
-        function pointToSegmentDist(px, py, x1, y1, x2, y2) {
-          const dx = x2 - x1;
-          const dy = y2 - y1;
-          if (dx === 0 && dy === 0) {
-            return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+    /**
+         * Core RPP creation logic — extractable for single and batch modes.
+         * @param {object} feature - Feature object with number, street, lat, lon, etc.
+         * @param {boolean} silent - When true, skip toast for validation failures (batch mode).
+         * @returns {{houseNumber: string, streetId: number}|null} Result object on success, null on validation skip.
+         */
+        function createSingleRPP(feature, silent) {
+          if (feature.processed) return null;
+          if (typeof feature.lat !== 'number' || typeof feature.lon !== 'number' || isNaN(feature.lat) || isNaN(feature.lon)) {
+            if (!silent) console.warn('[UA-RPP] Invalid coordinates for feature:', feature);
+            return null;
           }
-          const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
-          const closestX = x1 + t * dx;
-          const closestY = y1 + t * dy;
-          return Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
-        }
-        
-// Convert feature coords to pixel coords
-        const featurePx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: featureLon, lat: featureLat } });
 
-        for (const seg of segments) {
-          const coords = seg.geometry?.coordinates;
-          if (!Array.isArray(coords) || coords.length < 2) continue;
-          
-          // Calculate distance to each segment line
-          for (let i = 0; i < coords.length - 1; i++) {
-            const p1 = coords[i];
-            const p2 = coords[i + 1];
-            if (!p1 || !p2) continue;
-            
-            const p1Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p1[0], lat: p1[1] } });
-            const p2Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p2[0], lat: p2[1] } });
-            
-            const dist = pointToSegmentDist(featurePx.x, featurePx.y, p1Px.x, p1Px.y, p2Px.x, p2Px.y);
-            if (dist < minDist) { // увеличен порог до 300px
-              minDist = dist;
-              nearestStreetId = seg.primaryStreetId;
+          const houseNumber = normalizeHouseNumber(feature.number);
+          const featureLon = feature.lon;
+          const featureLat = feature.lat;
+
+          // Find the nearest segment to get the street
+          const segments = wmeSDK.DataModel.Segments.getAll();
+
+          let nearestStreetId = null;
+          let minDist = Infinity;
+
+          // Calculate distance to segment (in pixels)
+          function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            if (dx === 0 && dy === 0) {
+              return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
             }
+            const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+            const closestX = x1 + t * dx;
+            const closestY = y1 + t * dy;
+            return Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
           }
-        }
-        
-        if (!nearestStreetId) {
-          const msg = 'Не знайдено сегментів поруч з цим маркером';
-          console.warn('[UA-RPP]', msg);
-          toast(msg, 'warning');
-          return;
-        }
-        
-        // Check if street has a name (RPP cannot be created without street name)
-        const street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
-        
-        // "Unnamed road" with actual name text - should not create RPP even with marker street name
-        // But EMPTY name is ok - we'll use marker's street
-        const streetNameLower = street?.name?.toLowerCase() || '';
-        const isNamedUnnamed = streetNameLower && 
-            /^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(streetNameLower.trim());
-if (isNamedUnnamed) {
-          const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
-          console.warn('[UA-RPP]', msg);
-          toast(msg, 'warning');
-          return;
-        }
-       
-        // If segment lacks street name, use the one from the marker
-        let effectiveStreetName = null;
-        let useMarkerStreet = false;
-        
-        if (!street || !street.name) {
-          // Segment without name - use marker's street
-          if (feature.streetRaw) {
-            effectiveStreetName = feature.streetRaw;
-            useMarkerStreet = true;
-          } else {
-            const msg = 'Сегмент без назви вулиці — RPP не можна створити';
-            console.warn('[UA-RPP]', msg);
-            toast(msg, 'warning');
-            return;
-          }
-        }
-        
-        // Clean Visicom street names (remove old name in parentheses)
-        if (useMarkerStreet || feature.source === 'visicom') {
-          effectiveStreetName = cleanStreetName(effectiveStreetName || street?.name);
-        }
-        
-        // If using marker's street name, try to find matching street in WME within 300m radius
-        let streetId = nearestStreetId;
-        let foundMatchingStreet = false;
-        if (useMarkerStreet && effectiveStreetName) {
-          const normalizedMarkerStreet = normalizeForComparison(effectiveStreetName);
-          const allSegments = wmeSDK.DataModel.Segments.getAll();
-          const streetIds = new Set();
-          for (const seg of allSegments) {
-            // Check distance within 300m radius
-            if (feature.lat && feature.lon && seg.geometry) {
-              const segDist = calculateDistance(feature.lat, feature.lon, 
-                seg.geometry.coordinates[1], seg.geometry.coordinates[0]);
-              if (segDist > 0.3) continue; // Skip if > 300m
-            }
-            if (seg.primaryStreetId) streetIds.add(seg.primaryStreetId);
-            (seg.alternateStreetIds || []).forEach(id => streetIds.add(id));
-          }
-          for (const id of streetIds) {
-            const wmeStreet = wmeSDK.DataModel.Streets.getById({ streetId: id });
-            if (wmeStreet?.name && normalizeForComparison(wmeStreet.name) === normalizedMarkerStreet) {
-              streetId = id;
-              foundMatchingStreet = true;
-              break;
-            }
-          }
-// If no matching street found within 300m, don't create RPP
-          if (!foundMatchingStreet) {
-            const msg = `Не знайдено вулиці "${effectiveStreetName}" в радіусі 300м`;
-            console.warn('[UA-RPP]', msg);
-            toast(msg, 'warning');
-            return;
-          }
-        }
 
-        // Check for duplicates before creating
-        if (LS.getNoDuplicates() && hasDuplicate(houseNumber, streetId, true)) {
-          const msg = 'RPP з таким номером вже існує на цій вулиці';
-          console.warn('[UA-RPP]', msg);
-          toast(msg, 'warning');
-          return;
-        }
-
-        // --- Snap to road logic ---
-        let snapLon = feature.lon;
-        let snapLat = feature.lat;
-        if (LS.getSnapToRoad()) {
-          const snapResult = snapToNearestRoad(feature.lon, feature.lat, feature.streetRaw || feature.street);
-          if (snapResult) {
-            snapLon = snapResult.lon;
-            snapLat = snapResult.lat;
-          } else {
-            // No matching street segment found — skip RPP creation
-            const msg = `Не знайдено сегмент "${feature.streetRaw || feature.street}" — RPP не створено`;
-            console.warn('[UA-RPP]', msg);
-            toast(msg, 'warning');
-            return;
+          // Convert feature coords to pixel coords
+          const featurePx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: featureLon, lat: featureLat } });
+          if (!featurePx) {
+            if (!silent) console.warn('[UA-RPP] Cannot convert feature coords to pixels');
+            return null;
           }
-        }
 
-        const geometry = {
-          type: 'Point',
-          coordinates: [snapLon, snapLat]
-        };
+          for (const seg of segments) {
+            const coords = seg.geometry?.coordinates;
+            if (!Array.isArray(coords) || coords.length < 2) continue;
 
-        // Create venue(s): RPP only or POI + RPP depending on checkbox
-        const createVenue = (residential, geometryOverride) => {
-          const g = geometryOverride || geometry;
-          const coords = g.coordinates;
-          const vid = wmeSDK.DataModel.Venues.addVenue({
-            category: 'OTHER',
-            geometry: g
-          });
-          wmeSDK.DataModel.Venues.updateVenue({
-            venueId: String(vid),
-            name: houseNumber
-          });
-          wmeSDK.DataModel.Venues.updateAddress({
-            venueId: String(vid),
-            houseNumber: houseNumber,
-            streetId: streetId
-          });
-          if (residential) {
-            wmeSDK.DataModel.Venues.updateVenueIsResidential({
-              venueId: String(vid),
-              isResidential: true
-            });
-          }
-          wmeSDK.DataModel.Venues.replaceNavigationPoints({
-            venueId: String(vid),
-            navigationPoints: [{
-              isEntry: true,
-              isExit: true,
-              isPrimary: true,
-              name: '',
-              point: { type: 'Point', coordinates: [coords[0], coords[1]] }
-            }]
-          });
-          return vid;
-        };
+            for (let i = 0; i < coords.length - 1; i++) {
+              const p1 = coords[i];
+              const p2 = coords[i + 1];
+              if (!p1 || !p2) continue;
 
-        let venueId;
-        if (LS.getCreatePOI()) {
-          // Смещаем POI на ~2м на запад, чтобы маркеры не накладывались
-          const poiOffset = -0.000026;
-          const poiGeometry = {
-            type: 'Point',
-            coordinates: [snapLon + poiOffset, snapLat]
-          };
-          createVenue(false, poiGeometry); // POI со смещением
-          venueId = createVenue(true); // RPP на месте
-        } else {
-          venueId = createVenue(true); // RPP only
-        }
+              const p1Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p1[0], lat: p1[1] } });
+              const p2Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p2[0], lat: p2[1] } });
 
-        // Lock last venue to level 2 if enabled and user has rank > 0
-        if (LS.getLockRank2() && wmeSDK.State?.getUserInfo) {
-          try {
-            const userInfo = wmeSDK.State.getUserInfo();
-            if (userInfo?.rank > 0) {
-              const venue = wmeSDK.DataModel.Venues.getById({ venueId: String(venueId) });
-              if (venue && venue.lockRank < 1) {
-                wmeSDK.DataModel.Venues.updateVenue({
-                  venueId: String(venueId),
-                  lockRank: 1
-                });
-                console.log('[UA-RPP] Locked venue to level 2:', venueId);
+              const dist = pointToSegmentDist(featurePx.x, featurePx.y, p1Px.x, p1Px.y, p2Px.x, p2Px.y);
+              if (dist < minDist) {
+                minDist = dist;
+                nearestStreetId = seg.primaryStreetId;
               }
             }
-          } catch (e) {
-            console.warn('[UA-RPP] Could not lock venue:', e);
+          }
+
+          if (!nearestStreetId) {
+            const msg = 'Не знайдено сегментів поруч з цим маркером';
+            if (!silent) toast(msg, 'warning');
+            else console.warn('[UA-RPP]', msg);
+            return null;
+          }
+
+          // Check if street has a name (RPP cannot be created without street name)
+          const street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
+
+          const streetNameLower = street?.name?.toLowerCase() || '';
+          const isNamedUnnamed = streetNameLower && 
+              /^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(streetNameLower.trim());
+          if (isNamedUnnamed) {
+            const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
+            if (!silent) toast(msg, 'warning');
+            else console.warn('[UA-RPP]', msg);
+            return null;
+          }
+
+          // If segment lacks street name, use the one from the marker
+          let effectiveStreetName = null;
+          let useMarkerStreet = false;
+
+          if (!street || !street.name) {
+            if (feature.streetRaw) {
+              effectiveStreetName = feature.streetRaw;
+              useMarkerStreet = true;
+            } else {
+              const msg = 'Сегмент без назви вулиці — RPP не можна створити';
+              if (!silent) toast(msg, 'warning');
+              else console.warn('[UA-RPP]', msg);
+              return null;
+            }
+          }
+
+          // Clean Visicom street names (remove old name in parentheses)
+          if (useMarkerStreet || feature.source === 'visicom') {
+            effectiveStreetName = cleanStreetName(effectiveStreetName || street?.name);
+          }
+
+          // If using marker's street name, try to find matching street in WME within 300m radius
+          let streetId = nearestStreetId;
+          let foundMatchingStreet = false;
+          if (useMarkerStreet && effectiveStreetName) {
+            const normalizedMarkerStreet = normalizeForComparison(effectiveStreetName);
+            const allSegments = wmeSDK.DataModel.Segments.getAll();
+            const streetIds = new Set();
+            for (const seg of allSegments) {
+              if (feature.lat && feature.lon && seg.geometry) {
+                const segDist = calculateDistance(feature.lat, feature.lon, 
+                  seg.geometry.coordinates[1], seg.geometry.coordinates[0]);
+                if (segDist > 0.3) continue;
+              }
+              if (seg.primaryStreetId) streetIds.add(seg.primaryStreetId);
+              (seg.alternateStreetIds || []).forEach(id => streetIds.add(id));
+            }
+            for (const id of streetIds) {
+              const wmeStreet = wmeSDK.DataModel.Streets.getById({ streetId: id });
+              if (wmeStreet?.name && normalizeForComparison(wmeStreet.name) === normalizedMarkerStreet) {
+                streetId = id;
+                foundMatchingStreet = true;
+                break;
+              }
+            }
+            if (!foundMatchingStreet) {
+              const msg = `Не знайдено вулиці "${effectiveStreetName}" в радіусі 300м`;
+              if (!silent) toast(msg, 'warning');
+              else console.warn('[UA-RPP]', msg);
+              return null;
+            }
+          }
+
+          // Check for duplicates before creating
+          if (LS.getNoDuplicates() && hasDuplicate(houseNumber, streetId, true)) {
+            const msg = 'RPP з таким номером вже існує на цій вулиці';
+            if (!silent) toast(msg, 'warning');
+            else console.warn('[UA-RPP]', msg);
+            return null;
+          }
+
+          // --- Snap to road logic ---
+          let snapLon = feature.lon;
+          let snapLat = feature.lat;
+          if (LS.getSnapToRoad()) {
+            const snapResult = snapToNearestRoad(feature.lon, feature.lat, feature.streetRaw || feature.street);
+            if (snapResult) {
+              snapLon = snapResult.lon;
+              snapLat = snapResult.lat;
+            } else {
+              const msg = `Не знайдено сегмент "${feature.streetRaw || feature.street}" — RPP не створено`;
+              if (!silent) toast(msg, 'warning');
+              else console.warn('[UA-RPP]', msg);
+              return null;
+            }
+          }
+
+          const geometry = {
+            type: 'Point',
+            coordinates: [snapLon, snapLat]
+          };
+
+          // Create venue(s): RPP only or POI + RPP depending on checkbox
+          const createVenue = (residential, geometryOverride) => {
+            const g = geometryOverride || geometry;
+            const coords = g.coordinates;
+            const vid = wmeSDK.DataModel.Venues.addVenue({
+              category: 'OTHER',
+              geometry: g
+            });
+            wmeSDK.DataModel.Venues.updateVenue({
+              venueId: String(vid),
+              name: houseNumber
+            });
+            wmeSDK.DataModel.Venues.updateAddress({
+              venueId: String(vid),
+              houseNumber: houseNumber,
+              streetId: streetId
+            });
+            if (residential) {
+              wmeSDK.DataModel.Venues.updateVenueIsResidential({
+                venueId: String(vid),
+                isResidential: true
+              });
+            }
+            wmeSDK.DataModel.Venues.replaceNavigationPoints({
+              venueId: String(vid),
+              navigationPoints: [{
+                isEntry: true,
+                isExit: true,
+                isPrimary: true,
+                name: '',
+                point: { type: 'Point', coordinates: [coords[0], coords[1]] }
+              }]
+            });
+            return vid;
+          };
+
+          let venueId;
+          if (LS.getCreatePOI()) {
+            const poiOffset = -0.000026;
+            const poiGeometry = {
+              type: 'Point',
+              coordinates: [snapLon + poiOffset, snapLat]
+            };
+            createVenue(false, poiGeometry);
+            venueId = createVenue(true);
+          } else {
+            venueId = createVenue(true);
+          }
+
+          // Lock last venue to level 2 if enabled and user has rank > 0
+          if (LS.getLockRank2() && wmeSDK.State?.getUserInfo) {
+            try {
+              const userInfo = wmeSDK.State.getUserInfo();
+              if (userInfo?.rank > 0) {
+                const venue = wmeSDK.DataModel.Venues.getById({ venueId: String(venueId) });
+                if (venue && venue.lockRank < 1) {
+                  wmeSDK.DataModel.Venues.updateVenue({
+                    venueId: String(venueId),
+                    lockRank: 1
+                  });
+                  console.log('[UA-RPP] Locked venue to level 2:', venueId);
+                }
+              }
+            } catch (e) {
+              console.warn('[UA-RPP] Could not lock venue:', e);
+            }
+          }
+
+          // Select the new venue to open edit panel
+          wmeSDK.Editing.setSelection({
+            selection: {
+              ids: [String(venueId)],
+              objectType: 'venue'
+            }
+          });
+
+          return { houseNumber, streetId };
+        }
+
+        function onFeatureClick(feature) {
+          try {
+            const result = createSingleRPP(feature);
+            if (!result) return;
+
+            feature.userAdded = true;
+            feature.processed = true;
+            feature.conflict = false;
+            applyFeatureFilter();
+
+            toast(`Додано ${LS.getCreatePOI() ? 'POI + RPP' : 'RPP'} ${result.houseNumber} 🏠`, 'success');
+          } catch (err) {
+            console.error('[UA-RPP] Помилка додавання', err);
+            toast(err.message || 'Помилка додавання RPP', 'error');
+            lastRestriction = { number: normalizeHouseNumber(feature.number), reason: err.message };
+            if (restrictionsDiv) {
+              restrictionsDiv.innerHTML = `<i class="fa fa-exclamation-triangle"></i> <b>Помилка:</b> ${normalizeHouseNumber(feature.number)} — ${err.message}`;
+            }
           }
         }
 
-        // Select the new venue to open edit panel
-        wmeSDK.Editing.setSelection({
-          selection: {
-            ids: [String(venueId)],
-            objectType: 'venue'
+        /**
+         * Batch-create RPPs for all visible unprocessed markers of a given source.
+         * Triggered by Shift+click on any marker.
+         */
+        function batchCreateRPP(source) {
+          const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
+          const sourceText = sourceLabels[source] || source;
+
+          const batchFeatures = lastFeatures.filter(f =>
+            !f.processed && f.source === source &&
+            typeof f.lat === 'number' && typeof f.lon === 'number' &&
+            !isNaN(f.lat) && !isNaN(f.lon)
+          );
+
+          if (!batchFeatures.length) {
+            toast(`Немає необроблених маркерів джерела ${sourceText}`, 'warning');
+            return;
           }
-        });
 
-        feature.userAdded = true;
-        feature.processed = true;
-        feature.conflict = false;
-        applyFeatureFilter();
+          let successCount = 0;
+          let failCount = 0;
+          const total = batchFeatures.length;
 
-        toast(`Додано ${LS.getCreatePOI() ? 'POI + RPP' : 'RPP'} ${houseNumber} 🏠`, 'success');
-      } catch (err) {
-        console.error('[UA-RPP] Помилка додавання', err);
-        toast(err.message || 'Помилка додавання RPP', 'error');
-        lastRestriction = { number: houseNumber, reason: err.message };
-        if (restrictionsDiv) {
-          restrictionsDiv.innerHTML = `<i class="fa fa-exclamation-triangle"></i> <b>Помилка:</b> ${houseNumber} — ${err.message}`;
+          toast(`🔄 Пакетне створення RPP для ${sourceText}: 0/${total}`, 'info');
+
+          // Process sequentially with 300ms delay between each
+          batchFeatures.reduce((promise, feat, index) => {
+            return promise.then(() => {
+              return new Promise(resolve => {
+                setTimeout(() => {
+                  try {
+                    const result = createSingleRPP(feat, true);
+                    if (result) {
+                      feat.userAdded = true;
+                      feat.processed = true;
+                      feat.conflict = false;
+                      successCount++;
+                    } else {
+                      failCount++;
+                    }
+                  } catch (err) {
+                    console.warn(`[UA-RPP batch] Помилка: ${feat.number} — ${err.message}`);
+                    failCount++;
+                  }
+                  const done = successCount + failCount;
+                  if (done < total) {
+                    toast(`🔄 ${sourceText}: ${done}/${total} (✓${successCount} ✗${failCount})`, 'info');
+                  }
+                  resolve();
+                }, 300);
+              });
+            });
+          }, Promise.resolve()).then(() => {
+            applyFeatureFilter();
+            const successMsg = `✅ ${sourceText}: створено ${successCount}/${total} RPP` +
+              (failCount > 0 ? ` (${failCount} пропущено)` : '');
+            toast(successMsg, failCount > 0 && successCount === 0 ? 'warning' : 'success');
+
+            // Update instructions with result
+            if (statusDiv) {
+              statusDiv.innerHTML = `<b>Пакетне створення</b><br/>` +
+                `<span style="color:#080;">✓ ${successCount}</span>` +
+                (failCount > 0 ? ` <span style="color:#c00;">✗ ${failCount}</span>` : '') +
+                ` — ${sourceText}<br/><span style="font-size:11px;color:#666;">${total} маркерів оброблено</span>`;
+            }
+          });
         }
-      }
-    }
 
     const loading = document.createElement('div');
     loading.style.position = 'absolute';
