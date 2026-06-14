@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.74
+// @version      1.8.75
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1452,8 +1452,14 @@
           const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
           const sourceText = sourceLabels[source] || source;
 
+          if (!currentStreetId) {
+            toast('Спочатку виберіть вулицю (виділіть сегмент на карті)', 'warning');
+            return;
+          }
+
           const batchFeatures = lastFeatures.filter(f =>
             !f.processed && f.source === source &&
+            f.street === currentStreetId &&
             typeof f.lat === 'number' && typeof f.lon === 'number' &&
             !isNaN(f.lat) && !isNaN(f.lon)
           );
