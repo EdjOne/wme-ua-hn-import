@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.75
+// @version      1.8.76
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -953,6 +953,9 @@
     // Last restriction reason when RPP cannot be added
     let lastRestriction = null;
 
+    // Batch context: remembers source+street from last normal click for Shift+click batch mode
+    let batchContext = { source: null, street: null };
+
     let applyFeatureFilter = () => {};
 
     try {
@@ -1433,6 +1436,10 @@
             feature.conflict = false;
             applyFeatureFilter();
 
+            // Remember source+street for batch mode (Shift+click)
+            batchContext.source = feature.source || 'waze';
+            batchContext.street = feature.street;
+
             toast(`Додано ${LS.getCreatePOI() ? 'POI + RPP' : 'RPP'} ${result.houseNumber} 🏠`, 'success');
           } catch (err) {
             console.error('[UA-RPP] Помилка додавання', err);
@@ -1452,14 +1459,15 @@
           const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
           const sourceText = sourceLabels[source] || source;
 
-          if (!currentStreetId) {
-            toast('Спочатку виберіть вулицю (виділіть сегмент на карті)', 'warning');
+          if (!batchContext.source) {
+            toast('Спочатку клікніть на маркер (без Shift), щоб задати джерело+вулицю', 'warning');
             return;
           }
 
           const batchFeatures = lastFeatures.filter(f =>
-            !f.processed && f.source === source &&
-            f.street === currentStreetId &&
+            !f.processed &&
+            f.source === batchContext.source &&
+            f.street === batchContext.street &&
             typeof f.lat === 'number' && typeof f.lon === 'number' &&
             !isNaN(f.lat) && !isNaN(f.lon)
           );
@@ -1739,6 +1747,7 @@
         // Clear deduplication cache so reloading shows all addresses
         window.__uaRppSeenFeatures?.clear();
         lastRestriction = null;
+        batchContext = { source: null, street: null };
         userWantsLayerVisible = false;
         wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
         setChecked(chkVis, false);
