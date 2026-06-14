@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.82
+// @version      1.8.83
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -956,6 +956,12 @@
     // Batch context: remembers source+street from last normal click for Alt+click batch mode
     let batchContext = { source: null, street: null };
 
+    // Capture Alt key from real DOM event (WME SDK strips modifier keys)
+    let altClickPending = false;
+    document.addEventListener('mousedown', (e) => {
+      altClickPending = e.altKey;
+    }, { capture: true, passive: true });
+
     let applyFeatureFilter = () => {};
 
     try {
@@ -1123,7 +1129,8 @@
       if (!bestFeature) return;
 
       // Alt+click = create 1 RPP for clicked marker + batch all other unprocessed
-      if (evt.altKey) {
+      if (altClickPending) {
+        altClickPending = false;
         // First create single RPP (saves source+street to batchContext)
         onFeatureClick(bestFeature);
         // Then batch all remaining unprocessed of same source+street

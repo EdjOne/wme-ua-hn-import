@@ -45,7 +45,7 @@ python3 wme_bot.py --api
 ├── wme_bot.py                # Telegram бот + API
 ├── repo/                     # код Словении (оригинал)
 ├── src/
-`├── ua-hn-import.user.js  # v1.8.82`
+`├── ua-hn-import.user.js  # v1.8.83`
 ```
 
 ## ✅ Статус
@@ -152,5 +152,6 @@ python3 wme_bot.py --api
 - **v1.8.80**: Зменшено шрифт заголовка (h2 14px, версія 10px) для поміщення в один рядок
 - **v1.8.81**: Batch тригер: double-click → Alt+click на маркері
 - **v1.8.82**: Alt+click тепер створює 1 RPP + батчить решту (одним кліком)
+- **v1.8.83**: Alt/Option+click: перехоплення модифікатора через DOM (не через WME SDK)
 
 P.S. Все HN заменены на RPP (UA-RPP).
