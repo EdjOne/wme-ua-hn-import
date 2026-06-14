@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.76
+// @version      1.8.77
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1122,8 +1122,8 @@
 
       if (!bestFeature) return;
 
-      // Shift+click = batch create all visible markers of the same source
-      if (evt.shiftKey) {
+      // Ctrl+click = batch create all unprocessed markers of remembered source+street
+      if (evt.ctrlKey || evt.metaKey) {
         batchCreateRPP(bestFeature.source || 'waze');
         return;
       }
@@ -1436,7 +1436,7 @@
             feature.conflict = false;
             applyFeatureFilter();
 
-            // Remember source+street for batch mode (Shift+click)
+            // Remember source+street for batch mode (Ctrl+click)
             batchContext.source = feature.source || 'waze';
             batchContext.street = feature.street;
 
@@ -1452,15 +1452,15 @@
         }
 
         /**
-         * Batch-create RPPs for all visible unprocessed markers of a given source.
-         * Triggered by Shift+click on any marker.
+         * Batch-create RPPs for all unprocessed markers of the remembered source+street.
+         * Triggered by Ctrl+click on any marker.
          */
         function batchCreateRPP(source) {
           const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
           const sourceText = sourceLabels[source] || source;
 
           if (!batchContext.source) {
-            toast('Спочатку клікніть на маркер (без Shift), щоб задати джерело+вулицю', 'warning');
+            toast('Спочатку клікніть на маркер (без Ctrl), щоб задати джерело+вулицю', 'warning');
             return;
           }
 
