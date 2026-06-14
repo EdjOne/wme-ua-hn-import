@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.81
+// @version      1.8.82
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1122,8 +1122,11 @@
 
       if (!bestFeature) return;
 
-      // Alt+click = batch create all unprocessed markers of remembered source+street
+      // Alt+click = create 1 RPP for clicked marker + batch all other unprocessed
       if (evt.altKey) {
+        // First create single RPP (saves source+street to batchContext)
+        onFeatureClick(bestFeature);
+        // Then batch all remaining unprocessed of same source+street
         batchCreateRPP(bestFeature.source || 'waze');
         return;
       }
