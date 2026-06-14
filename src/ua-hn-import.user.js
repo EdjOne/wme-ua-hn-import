@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.84
+// @version      1.8.85
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1465,6 +1465,61 @@
          * Batch-create RPPs for all unprocessed markers of the remembered source+street.
          * Triggered by Alt+click on any marker.
          */
+        // Floating batch progress indicator
+        let batchProgressEl = null;
+
+        function showBatchProgress(sourceText, total) {
+          if (!batchProgressEl) {
+            batchProgressEl = document.createElement('div');
+            batchProgressEl.id = 'qhnua-batch-progress';
+            batchProgressEl.style.cssText = 'position:fixed;bottom:60px;right:20px;z-index:10001;background:rgba(0,0,0,0.85);color:#fff;padding:12px 16px;border-radius:8px;font-size:13px;min-width:220px;box-shadow:0 4px 12px rgba(0,0,0,0.3);backdrop-filter:blur(4px);';
+            document.body.appendChild(batchProgressEl);
+          }
+          batchProgressEl.innerHTML = `
+            <div style="font-weight:bold;margin-bottom:6px;">🔄 ${sourceText}</div>
+            <div style="margin-bottom:4px;">0 / ${total}</div>
+            <div style="height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden;">
+              <div style="height:100%;width:0%;background:#8A2BE2;border-radius:3px;transition:width 0.2s;"></div>
+            </div>
+          `;
+          batchProgressEl.style.display = 'block';
+        }
+
+        function updateBatchProgress(done, total, successCount, failCount) {
+          if (!batchProgressEl) return;
+          const pct = Math.round((done / total) * 100);
+          batchProgressEl.innerHTML = `
+            <div style="font-weight:bold;margin-bottom:6px;">🔄 ${done}/${total}</div>
+            <div style="margin-bottom:4px;font-size:12px;">
+              <span style="color:#0c0;">✓${successCount}</span>
+              ${failCount > 0 ? ` <span style="color:#c00;">✗${failCount}</span>` : ''}
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:#8A2BE2;border-radius:3px;transition:width 0.2s;"></div>
+            </div>
+          `;
+        }
+
+        function hideBatchProgress(successCount, failCount, total) {
+          if (!batchProgressEl) return;
+          const pct = 100;
+          batchProgressEl.innerHTML = `
+            <div style="font-weight:bold;margin-bottom:6px;">
+              ${failCount === 0 ? '✅' : '⚠️'} ${successCount}/${total}
+            </div>
+            <div style="margin-bottom:4px;font-size:12px;">
+              <span style="color:#0c0;">✓${successCount}</span>
+              ${failCount > 0 ? ` <span style="color:#c00;">✗${failCount}</span>` : ''}
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden;">
+              <div style="height:100%;width:100%;background:${failCount === 0 ? '#0c0' : '#c80'};border-radius:3px;"></div>
+            </div>
+          `;
+          setTimeout(() => {
+            if (batchProgressEl) batchProgressEl.style.display = 'none';
+          }, 3000);
+        }
+
         function batchCreateRPP(source) {
           const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
           const sourceText = sourceLabels[source] || source;
@@ -1491,7 +1546,7 @@
           let failCount = 0;
           const total = batchFeatures.length;
 
-          toast(`🔄 Пакетне створення RPP для ${sourceText}: 0/${total}`, 'info');
+          showBatchProgress(sourceText, total);
 
           // Process sequentially with 300ms delay between each
           batchFeatures.reduce((promise, feat, index) => {
@@ -1513,15 +1568,14 @@
                     failCount++;
                   }
                   const done = successCount + failCount;
-                  if (done < total) {
-                    toast(`🔄 ${sourceText}: ${done}/${total} (✓${successCount} ✗${failCount})`, 'info');
-                  }
+                  updateBatchProgress(done, total, successCount, failCount);
                   resolve();
                 }, 300);
               });
             });
           }, Promise.resolve()).then(() => {
             applyFeatureFilter();
+            hideBatchProgress(successCount, failCount, total);
             const successMsg = `✅ ${sourceText}: створено ${successCount}/${total} RPP` +
               (failCount > 0 ? ` (${failCount} пропущено)` : '');
             toast(successMsg, failCount > 0 && successCount === 0 ? 'warning' : 'success');
