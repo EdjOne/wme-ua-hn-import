@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.78
+// @version      1.8.79
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -953,8 +953,12 @@
     // Last restriction reason when RPP cannot be added
     let lastRestriction = null;
 
-    // Batch context: remembers source+street from last normal click for Shift+click batch mode
+    // Batch context: remembers source+street from last normal click for double-click batch mode
     let batchContext = { source: null, street: null };
+
+    // Double-click detection: track last click for double-click batch trigger
+    let lastClickFeature = null;
+    let lastClickTime = 0;
 
     let applyFeatureFilter = () => {};
 
@@ -1122,8 +1126,13 @@
 
       if (!bestFeature) return;
 
-      // Ctrl+click = batch create all unprocessed markers of remembered source+street
-      if (evt.ctrlKey || evt.metaKey) {
+      // Double-click on a marker = batch create all unprocessed of remembered source+street
+      const now = Date.now();
+      const isDoubleClick = bestFeature === lastClickFeature && (now - lastClickTime) < 400;
+      lastClickFeature = bestFeature;
+      lastClickTime = now;
+
+      if (isDoubleClick) {
         batchCreateRPP(bestFeature.source || 'waze');
         return;
       }
@@ -1436,7 +1445,7 @@
             feature.conflict = false;
             applyFeatureFilter();
 
-            // Remember source+street for batch mode (Ctrl+click)
+            // Remember source+street for batch mode (double-click)
             batchContext.source = feature.source || 'waze';
             batchContext.street = feature.street;
 
@@ -1453,7 +1462,7 @@
 
         /**
          * Batch-create RPPs for all unprocessed markers of the remembered source+street.
-         * Triggered by Ctrl+click on any marker.
+         * Triggered by double-click on any marker.
          */
         function batchCreateRPP(source) {
           const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
