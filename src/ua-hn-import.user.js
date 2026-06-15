@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.89
+// @version     1.8.90
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1324,6 +1324,35 @@
                 }
               }
               if (streetId !== nearestStreetId) break; // found match, stop
+            }
+          }
+          // If marker's street name matches a PRIMARY of any nearby segment and differs
+          // from the nearest segment's street, prefer the marker's street (source data)
+          if (feature.streetRaw && !useMarkerStreet && streetId === nearestStreetId && street?.name) {
+            const normalizedMarker = normalizeForComparison(feature.streetRaw);
+            const normalizedNearest = normalizeForComparison(street.name);
+            if (normalizedMarker !== normalizedNearest) {
+              const allSegments = wmeSDK.DataModel.Segments.getAll();
+              for (const seg of allSegments) {
+                if (!seg.primaryStreetId) continue;
+                const primaryStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+                if (primaryStreet?.name && normalizeForComparison(primaryStreet.name) === normalizedMarker) {
+                  // Check distance — use first point of segment geometry
+                  let withinRange = false;
+                  if (feature.lat && feature.lon && seg.geometry?.coordinates?.length > 0) {
+                    const firstCoord = seg.geometry.coordinates[0];
+                    if (Array.isArray(firstCoord) && firstCoord.length >= 2) {
+                      const d = calculateDistance(feature.lat, feature.lon, firstCoord[1], firstCoord[0]);
+                      if (d <= 0.3) withinRange = true; // 300m radius
+                    }
+                  }
+                  if (withinRange) {
+                    streetId = seg.primaryStreetId;
+                    console.log(`[UA-RPP] Marker street "${feature.streetRaw}" matches primary — using instead of nearest "${street.name}"`);
+                    break;
+                  }
+                }
+              }
             }
           }
           if (useMarkerStreet && effectiveStreetName) {
