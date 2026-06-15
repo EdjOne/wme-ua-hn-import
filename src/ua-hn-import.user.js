@@ -1607,7 +1607,7 @@
 
       tabPane.innerHTML = `
         <div id="qhnua-pane" style="padding:10px;">
-          <h3 style="margin:0 0 8px 0;font-size:17px;"><span style="color:#8A2BE2;">▲</span> Швидкий імпорт RPP <small style="font-weight:normal;color:#aaa;">v${GM_info.script.version}</small></h3>
+          <h3 style="margin:0 0 8px 0;font-size:19px;"><span style="color:#8A2BE2;">▲</span> Швидкий імпорт RPP <small style="font-weight:normal;color:#aaa;">v${GM_info.script.version}</small></h3>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px 0;">
             <button id="hn-load" class="wz-button"><span id="hn-load-label">Завантажити</span> <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+L</kbd></button>
             <button id="hn-clear" class="wz-button wz-button--secondary">Очистити <kbd style="margin-left:6px;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,0.08);border-radius:3px;padding:2px 5px;color:#555;">Alt+Shift+K</kbd></button>
