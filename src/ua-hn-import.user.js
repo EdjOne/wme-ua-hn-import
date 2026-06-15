@@ -1012,6 +1012,7 @@
         }
       }]
     });
+    wmeSDK.Map.setLayerZIndex({ layerName: SDK_LAYER_NAME, zIndex: 9999 });
     wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
 
     let lastComputedVisibility = false;
