@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version      1.8.88
+// @version      1.8.89
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1303,37 +1303,27 @@
           let streetId = nearestStreetId;
           let foundMatchingStreet = false;
 
-          // If marker's street name matches an alternate of any nearby segment,
-          // use the primary street instead — the marker's street is an outdated alias
+          // If marker's street name matches an alternate of any segment,
+          // use the primary street — the marker's street is an outdated alias
           if (feature.streetRaw && !useMarkerStreet) {
             const normalizedMarker = normalizeForComparison(feature.streetRaw);
             const allSegments = wmeSDK.DataModel.Segments.getAll();
-            let bestPrimaryId = null;
-            let bestDist = Infinity;
             for (const seg of allSegments) {
-              if (!seg.alternateStreetIds?.length || !seg.primaryStreetId ||
-                  !seg.geometry?.coordinates?.length) continue;
-              const segDist = calculateDistance(feature.lat, feature.lon,
-                seg.geometry.coordinates[1], seg.geometry.coordinates[0]);
-              if (segDist > 0.1) continue; // 100m radius
+              if (!seg.alternateStreetIds?.length || !seg.primaryStreetId) continue;
+              // Check if this segment has the marker's street as an alternate
               for (const altId of seg.alternateStreetIds) {
                 const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
                 if (altStreet?.name && normalizeForComparison(altStreet.name) === normalizedMarker) {
                   const primaryStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
                   if (primaryStreet?.name && normalizeForComparison(primaryStreet.name) !== normalizedMarker) {
-                    if (segDist < bestDist) {
-                      bestDist = segDist;
-                      bestPrimaryId = seg.primaryStreetId;
-                    }
+                    // Found a segment where marker's street is an alternate and primary is different
+                    streetId = seg.primaryStreetId;
+                    console.log(`[UA-RPP] Marker street "${feature.streetRaw}" is alternate → using primary "${primaryStreet.name}"`);
+                    break; // break alt loop
                   }
-                  break;
                 }
               }
-            }
-            if (bestPrimaryId) {
-              streetId = bestPrimaryId;
-              const bestStreet = wmeSDK.DataModel.Streets.getById({ streetId: bestPrimaryId });
-              console.log(`[UA-RPP] Marker street "${feature.streetRaw}" found as alternate → using primary "${bestStreet?.name}"`);
+              if (streetId !== nearestStreetId) break; // found match, stop
             }
           }
           if (useMarkerStreet && effectiveStreetName) {
