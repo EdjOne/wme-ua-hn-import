@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.90
+// @version     1.8.91
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -245,52 +245,19 @@
     return null;
   }
 
-  function snapToNearestRoad(lon, lat, streetName) {
+  function snapToNearestRoad(lon, lat) {
     try {
       const allSegments = wmeSDK.DataModel.Segments.getAll();
-      let bestPerpDist = Infinity, bestPerpProj = null; // true perpendiculars (t inside segment)
-      let bestEndDist = Infinity, bestEndProj = null;   // endpoint fallbacks (t clamped to 0 or 1)
+      let bestPerpDist = Infinity, bestPerpProj = null;
+      let bestEndDist = Infinity, bestEndProj = null;
 
-      const normalizedTarget = normalizeForComparison(cleanStreetName(streetName));
-      console.log(`[UA-RPP snap] target="${streetName}" → clean="${cleanStreetName(streetName)}" → normalized="${normalizedTarget}"`);
-
-      let matchCount = 0;
       for (const seg of allSegments) {
-        // Match by street name (not ID — streetId is a normalized string, seg.primaryStreetId is numeric)
-        const segStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
-        const segNameRaw = segStreet?.name || '';
-        const segNameClean = cleanStreetName(segNameRaw);
-        const segNameNorm = normalizeForComparison(segNameClean);
-        let matches = fuzzyStreetMatch(segNameNorm, normalizedTarget);
-        if (!matches && seg.alternateStreetIds?.length) {
-          for (const altId of seg.alternateStreetIds) {
-            const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
-            const altNameNorm = normalizeForComparison(cleanStreetName(altStreet?.name || ''));
-            if (fuzzyStreetMatch(altNameNorm, normalizedTarget)) {
-              console.log(`[UA-RPP snap] ✓ alt fuzzy match: "${altStreet?.name}" → "${altNameNorm}"`);
-              matches = true; break;
-            }
-          }
-        }
-        if (!matches) {
-          if (matchCount === 0 && segNameRaw) {
-            // Log first few non-matches to see what's available
-            console.log(`[UA-RPP snap] ✗ "${segNameRaw}" → clean="${segNameClean}" norm="${segNameNorm}" (id=${seg.primaryStreetId})`);
-          }
-          continue;
-        }
-        if (segNameNorm !== normalizedTarget) {
-          console.log(`[UA-RPP snap] ~ fuzzy match: "${segNameRaw}" ≈ "${streetName}"`);
-        }
-        matchCount++;
-
         const coords = seg.geometry?.coordinates;
         if (!coords || coords.length < 2) continue;
 
         for (let i = 0; i < coords.length - 1; i++) {
           const proj = projectOnSegment(lon, lat, coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
-          const isPerpendicular = proj.t > 0.01 && proj.t < 0.99; // true perpendicular (not clamped to endpoint)
-          console.log(`[UA-RPP snap] ✓ match "${segNameRaw}" sub=${i} t=${proj.t.toFixed(3)} dist=${proj.dist.toFixed(1)}m perp=${isPerpendicular}`);
+          const isPerpendicular = proj.t > 0.01 && proj.t < 0.99;
           if (isPerpendicular && proj.dist < bestPerpDist) {
             bestPerpDist = proj.dist;
             bestPerpProj = proj;
@@ -301,30 +268,25 @@
         }
       }
 
-      console.log(`[UA-RPP snap] result: perp=${bestPerpProj ? bestPerpDist.toFixed(1)+'m' : 'none'} end=${bestEndProj ? bestEndDist.toFixed(1)+'m' : 'none'} matched_segments=${matchCount}`);
-
       // Prefer true perpendicular; fall back to endpoint if none found
       const bestProj = bestPerpProj || bestEndProj;
       const bestDist = bestPerpProj ? bestPerpDist : bestEndDist;
 
       const maxDist = 100; // meters
-      const offsetMeters = LS.getSnapDistance(); // already in meters
+      const offsetMeters = LS.getSnapDistance();
       if (bestProj && bestDist < maxDist) {
         const avgLat = (lat + bestProj.lat) / 2;
         const cosLat = Math.cos(avgLat * Math.PI / 180);
 
-        // Vector from projection to building in meter-space
         const meterDx = (lon - bestProj.lon) * cosLat * 111320;
         const meterDy = (lat - bestProj.lat) * 111320;
         const distMeters = Math.hypot(meterDx, meterDy);
 
-        if (distMeters < 0.01) return null; // too close to determine direction
+        if (distMeters < 0.01) return null;
 
-        // Unit vector in meter-space, scale to offset distance
         const unitX = meterDx / distMeters;
         const unitY = meterDy / distMeters;
 
-        // Place RPP at offsetMeters from road toward building (back to lon/lat)
         const offsetLon = bestProj.lon + (unitX * offsetMeters) / (cosLat * 111320);
         const offsetLat = bestProj.lat + (unitY * offsetMeters) / 111320;
 
@@ -1396,7 +1358,7 @@
           let snapLon = feature.lon;
           let snapLat = feature.lat;
           if (LS.getSnapToRoad()) {
-            const snapResult = snapToNearestRoad(feature.lon, feature.lat, feature.streetRaw || feature.street);
+            const snapResult = snapToNearestRoad(feature.lon, feature.lat);
             if (snapResult) {
               snapLon = snapResult.lon;
               snapLat = snapResult.lat;

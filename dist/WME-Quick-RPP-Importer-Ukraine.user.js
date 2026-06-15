@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME Quick RPP Importer - Ukraine
 // @namespace    https://github.com/EdjOne/wme-ua-hn-import
-// @version     1.8.90
+// @version     1.8.91
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       Edj (адаптація на основі ThatByte / zigapovhe)
 // @downloadURL  https://raw.githubusercontent.com/EdjOne/wme-ua-hn-import/main/src/ua-hn-import.user.js
