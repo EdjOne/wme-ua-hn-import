@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.93
+// @version     1.8.94
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -987,7 +987,6 @@
         }
       }]
     });
-    wmeSDK.Map.setLayerZIndex({ layerName: SDK_LAYER_NAME, zIndex: 9999 });
     wmeSDK.Map.setLayerVisibility({ layerName: SDK_LAYER_NAME, visibility: false });
 
     let lastComputedVisibility = false;
