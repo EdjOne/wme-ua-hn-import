@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.92
+// @version     1.8.93
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1345,6 +1345,36 @@
                 streetId = id;
                 foundMatchingStreet = true;
                 break;
+              }
+            }
+            // Fallback: fuzzy match if exact didn't work
+            if (!foundMatchingStreet) {
+              for (const id of streetIds) {
+                const wmeStreet = wmeSDK.DataModel.Streets.getById({ streetId: id });
+                if (wmeStreet?.name) {
+                  const wmeNorm = normalizeForComparison(wmeStreet.name);
+                  if (fuzzyStreetMatch(wmeNorm, normalizedMarkerStreet)) {
+                    streetId = id;
+                    foundMatchingStreet = true;
+                    console.log('[UA-RPP] Fuzzy match:', wmeStreet.name, '≈', effectiveStreetName);
+                    break;
+                  }
+                }
+              }
+            }
+            if (!foundMatchingStreet) {
+              // Last resort: try cleanStreetName on WME names too (remove parentheses)
+              for (const id of streetIds) {
+                const wmeStreet = wmeSDK.DataModel.Streets.getById({ streetId: id });
+                if (wmeStreet?.name) {
+                  const wmeNorm = normalizeForComparison(cleanStreetName(wmeStreet.name));
+                  if (wmeNorm === normalizedMarkerStreet || fuzzyStreetMatch(wmeNorm, normalizedMarkerStreet)) {
+                    streetId = id;
+                    foundMatchingStreet = true;
+                    console.log('[UA-RPP] Cleaned match:', wmeStreet.name, '→', effectiveStreetName);
+                    break;
+                  }
+                }
               }
             }
             if (!foundMatchingStreet) {
