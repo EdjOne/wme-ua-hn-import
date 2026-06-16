@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.91
+// @version     1.8.92
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -145,6 +145,19 @@
               Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+  }
+
+  // Calculate minimum distance (km) from point to any point along a segment polyline
+  function minDistanceToSegment(lat, lon, seg) {
+    const coords = seg.geometry?.coordinates;
+    if (!coords || coords.length < 2) return Infinity;
+    let minKm = Infinity;
+    for (let i = 0; i < coords.length; i++) {
+      const c = coords[i];
+      const d = calculateDistance(lat, lon, c[1], c[0]);
+      if (d < minKm) minKm = d;
+    }
+    return minKm;
   }
 
   function normalizeStreetName(name) {
@@ -1299,14 +1312,11 @@
                 if (!seg.primaryStreetId) continue;
                 const primaryStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
                 if (primaryStreet?.name && normalizeForComparison(primaryStreet.name) === normalizedMarker) {
-                  // Check distance — use first point of segment geometry
+                  // Check distance — use min distance to any point of segment geometry
                   let withinRange = false;
                   if (feature.lat && feature.lon && seg.geometry?.coordinates?.length > 0) {
-                    const firstCoord = seg.geometry.coordinates[0];
-                    if (Array.isArray(firstCoord) && firstCoord.length >= 2) {
-                      const d = calculateDistance(feature.lat, feature.lon, firstCoord[1], firstCoord[0]);
-                      if (d <= 0.3) withinRange = true; // 300m radius
-                    }
+                    const d = minDistanceToSegment(feature.lat, feature.lon, seg);
+                    if (d <= 0.3) withinRange = true;
                   }
                   if (withinRange) {
                     streetId = seg.primaryStreetId;
@@ -1323,8 +1333,7 @@
             const streetIds = new Set();
             for (const seg of allSegments) {
               if (feature.lat && feature.lon && seg.geometry) {
-                const segDist = calculateDistance(feature.lat, feature.lon, 
-                  seg.geometry.coordinates[1], seg.geometry.coordinates[0]);
+                const segDist = minDistanceToSegment(feature.lat, feature.lon, seg);
                 if (segDist > 0.3) continue;
               }
               if (seg.primaryStreetId) streetIds.add(seg.primaryStreetId);
