@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.96
+// @version     1.8.97
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -261,13 +261,16 @@
     return null;
   }
 
-  function snapToNearestRoad(lon, lat) {
+  function snapToNearestRoad(lon, lat, preferredStreetId) {
     try {
       const allSegments = wmeSDK.DataModel.Segments.getAll();
       let bestPerpDist = Infinity, bestPerpProj = null;
       let bestEndDist = Infinity, bestEndProj = null;
 
       for (const seg of allSegments) {
+        // If a preferred street is specified, only snap to segments on that street
+        if (preferredStreetId && seg.primaryStreetId !== preferredStreetId) continue;
+
         const coords = seg.geometry?.coordinates;
         if (!coords || coords.length < 2) continue;
 
@@ -1444,16 +1447,22 @@
           let snapLon = feature.lon;
           let snapLat = feature.lat;
           if (LS.getSnapToRoad()) {
-            const snapResult = snapToNearestRoad(feature.lon, feature.lat);
+            const snapResult = snapToNearestRoad(feature.lon, feature.lat, streetId);
             if (snapResult) {
               snapLon = snapResult.lon;
               snapLat = snapResult.lat;
-            } else {
-              const msg = `Не знайдено сегмент "${feature.streetRaw || feature.street}" — RPP не створено`;
-              if (!silent) toast(msg, 'warning');
-              else console.warn('[UA-RPP]', msg);
-              return null;
             }
+            // If preferred street segments found nothing within 100m, try any segment (fallback)
+            if (!snapResult && streetId) {
+              const fallbackSnap = snapToNearestRoad(feature.lon, feature.lat);
+              if (fallbackSnap) {
+                snapLon = fallbackSnap.lon;
+                snapLat = fallbackSnap.lat;
+                console.warn('[UA-RPP] Snap fallback: no segments of preferred street, snapped to nearest any');
+              }
+            }
+            // If even any-segment snap fails, keep original marker coordinates
+            // Don't abort RPP creation for snap failures
           }
 
           const geometry = {
