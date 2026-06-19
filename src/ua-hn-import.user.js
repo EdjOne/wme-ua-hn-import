@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.95
+// @version     1.8.96
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -212,7 +212,10 @@
     let prefix = 0;
     while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix++;
     if (prefix >= 5) return true;
-    // Levenshtein distance ≤2 (handles doubled/missing letters like "бесарабська" vs "бессарабська")
+    // Substring check: one contains the other (e.g. "українки" in "лесі українки")
+    // catches initials like "л. українки" → "українки" matching "лесі українки"
+    if (a.length >= 5 && b.length >= 5 && (a.includes(b) || b.includes(a))) return true;
+    // Levenshtein distance ≤2 (handles typos, doubled/missing letters like "бесарабська" vs "бессарабська")
     const m = a.length, n = b.length;
     if (Math.abs(m - n) > 2) return false; // too different in length
     const dp = [];
@@ -360,9 +363,15 @@
     }
 
     // Remove extra whitespace
-    normalized = normalized.replace(/\s+/g, ' ');
+    normalized = normalized.replace(/\s+/g, ' ').trim();
 
-    return normalized;
+    // Remove street-name initials: single Cyrillic/Latin letter + dot followed by space
+    // e.g. "л. українки" → "українки" (matches "лесі українки" in WME)
+    // Handles: Л. Українки, Т. Шевченка, М. Грушевського, etc.
+    normalized = normalized.replace(/^[а-яіїєґa-z]\s*\.\s+/, '');
+    normalized = normalized.replace(/\s[а-яіїєґa-z]\s*\.\s/g, ' ');
+
+    return normalized.trim();
   }
 
   function removeDiacritics(str) {
