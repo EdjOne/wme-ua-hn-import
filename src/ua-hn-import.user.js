@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.97
+// @version     1.8.102
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1506,31 +1506,36 @@
             return vid;
           };
 
-          let venueId;
+          let venueIds = [];
           if (LS.getCreatePOI()) {
             const poiOffset = -0.000026;
             const poiGeometry = {
               type: 'Point',
               coordinates: [snapLon + poiOffset, snapLat]
             };
-            createVenue(false, poiGeometry);
+            const poiId = createVenue(false, poiGeometry);
+            venueIds.push(poiId);
             venueId = createVenue(true);
+            venueIds.push(venueId);
           } else {
             venueId = createVenue(true);
+            venueIds = [venueId];
           }
 
-          // Lock last venue to level 2 if enabled and user has rank > 0
+          // Lock all created venues to level 2 if enabled and user has rank > 0
           if (LS.getLockRank2() && wmeSDK.State?.getUserInfo) {
             try {
               const userInfo = wmeSDK.State.getUserInfo();
               if (userInfo?.rank > 0) {
-                const venue = wmeSDK.DataModel.Venues.getById({ venueId: String(venueId) });
-                if (venue && venue.lockRank < 1) {
-                  wmeSDK.DataModel.Venues.updateVenue({
-                    venueId: String(venueId),
-                    lockRank: 1
-                  });
-                  console.log('[UA-RPP] Locked venue to level 2:', venueId);
+                for (const vid of venueIds) {
+                  const venue = wmeSDK.DataModel.Venues.getById({ venueId: String(vid) });
+                  if (venue && venue.lockRank < 1) {
+                    wmeSDK.DataModel.Venues.updateVenue({
+                      venueId: String(vid),
+                      lockRank: 1
+                    });
+                    console.log('[UA-RPP] Locked venue to level 2:', vid);
+                  }
                 }
               }
             } catch (e) {
