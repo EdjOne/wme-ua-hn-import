@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.103
+// @version     1.8.102
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1527,22 +1527,16 @@
             try {
               const userInfo = wmeSDK.State.getUserInfo();
               if (userInfo?.rank > 0) {
-                setTimeout(() => {
-                  for (const vid of venueIds) {
-                    try {
-                      const venue = wmeSDK.DataModel.Venues.getById({ venueId: String(vid) });
-                      if (venue && venue.lockRank < 1) {
-                        wmeSDK.DataModel.Venues.updateVenue({
-                          venueId: String(vid),
-                          lockRank: 1
-                        });
-                        console.log('[UA-RPP] Locked venue to level 2:', vid);
-                      }
-                    } catch (e2) {
-                      console.warn('[UA-RPP] Could not lock venue', vid, e2);
-                    }
+                for (const vid of venueIds) {
+                  const venue = wmeSDK.DataModel.Venues.getById({ venueId: String(vid) });
+                  if (venue && venue.lockRank < 1) {
+                    wmeSDK.DataModel.Venues.updateVenue({
+                      venueId: String(vid),
+                      lockRank: 1
+                    });
+                    console.log('[UA-RPP] Locked venue to level 2:', vid);
                   }
-                }, 500);
+                }
               }
             } catch (e) {
               console.warn('[UA-RPP] Could not lock venue:', e);
