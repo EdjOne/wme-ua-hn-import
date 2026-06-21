@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.100
+// @version     1.8.101
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1544,13 +1544,15 @@
             }
           }
 
-          // Select the new venue to open edit panel
-          wmeSDK.Editing.setSelection({
-            selection: {
-              ids: [String(venueId)],
-              objectType: 'venue'
-            }
-          });
+          // Select POI (not RPP) to open edit panel
+          setTimeout(() => {
+            wmeSDK.Editing.setSelection({
+              selection: {
+                ids: [String(venueId)],
+                objectType: 'venue'
+              }
+            });
+          }, 100);
 
           return { houseNumber, streetId };
         }
