@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.99
+// @version     1.8.100
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1506,6 +1506,7 @@
             return vid;
           };
 
+          let venueId;
           let venueIds = [];
           if (LS.getCreatePOI()) {
             const poiOffset = -0.000026;
