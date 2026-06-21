@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.98
+// @version     1.8.97
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -103,7 +103,8 @@
     setSnapToRoad(v)  { localStorage.setItem('qhnua-snap-road', v ? '1' : '0'); },
     getSnapDistance() { return Number(localStorage.getItem('qhnua-snap-dist') ?? '20'); },
     setSnapDistance(v){ localStorage.setItem('qhnua-snap-dist', String(v)); },
-    // RPP-only mode — always creates residential venue directly
+    getCreatePOI()    { return localStorage.getItem('qhnua-create-poi') === '1'; },
+    setCreatePOI(v)   { localStorage.setItem('qhnua-create-poi', v ? '1' : '0'); }
   };
 
   const toast = (msg, type = 'info') => {
@@ -1506,7 +1507,17 @@
           };
 
           let venueId;
-          venueId = createVenue(true);
+          if (LS.getCreatePOI()) {
+            const poiOffset = -0.000026;
+            const poiGeometry = {
+              type: 'Point',
+              coordinates: [snapLon + poiOffset, snapLat]
+            };
+            createVenue(false, poiGeometry);
+            venueId = createVenue(true);
+          } else {
+            venueId = createVenue(true);
+          }
 
           // Lock last venue to level 2 if enabled and user has rank > 0
           if (LS.getLockRank2() && wmeSDK.State?.getUserInfo) {
@@ -1720,6 +1731,7 @@
             <wz-checkbox id="hn-toggle">Показати точки</wz-checkbox>
             <wz-checkbox id="hn-no-duplicates">Не створювати дублікати</wz-checkbox>
             <wz-checkbox id="hn-lock-rank2">Заблокувати RPP (рівень 2)</wz-checkbox>
+            <wz-checkbox id="hn-create-poi">Створити POI + RPP</wz-checkbox>
             <span style="display:inline-flex;align-items:center;gap:6px;"><wz-checkbox id="hn-snap-road">Підтягувати до дороги</wz-checkbox><input id="hn-snap-dist" type="number" min="1" max="200" step="1" value="20" style="width:50px;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;" title="Відстань від дороги (м)"> м</span>
             <span style="color:#0066cc;font-weight:bold;">Джерела:</span> <span style="font-size:12px;">Зона пошуку <input id="qhnua-buffer" type="number" min="0" step="50" style="width:60px;margin-left:2px;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;"> м</span><br/>
             <label style="margin-right:12px;"><input type="checkbox" id="qhnua-src-waze"> Waze (зелений)</label>
@@ -1797,6 +1809,16 @@
           const on = isChecked(chkLockRank2);
           setChecked(chkLockRank2, !on);
           LS.setLockRank2(!on);
+        });
+      }
+
+      const chkCreatePOI = tabPane.querySelector('#hn-create-poi');
+      if (chkCreatePOI) {
+        setChecked(chkCreatePOI, LS.getCreatePOI());
+        chkCreatePOI.addEventListener('click', () => {
+          const on = isChecked(chkCreatePOI);
+          setChecked(chkCreatePOI, !on);
+          LS.setCreatePOI(!on);
         });
       }
 
