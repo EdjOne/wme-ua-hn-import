@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.99
+// @version     1.8.98
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1469,18 +1469,13 @@
             coordinates: [snapLon, snapLat]
           };
 
-          // Create venue — always creates RPP directly
-          const createVenue = () => {
-            const g = geometry;
+          // Create venue(s): RPP only or POI + RPP depending on checkbox
+          const createVenue = (residential, geometryOverride) => {
+            const g = geometryOverride || geometry;
             const coords = g.coordinates;
             const vid = wmeSDK.DataModel.Venues.addVenue({
               category: 'OTHER',
               geometry: g
-            });
-            // Immediately mark as residential — right after creation, before other updates
-            wmeSDK.DataModel.Venues.updateVenueIsResidential({
-              venueId: String(vid),
-              isResidential: true
             });
             wmeSDK.DataModel.Venues.updateVenue({
               venueId: String(vid),
@@ -1491,6 +1486,12 @@
               houseNumber: houseNumber,
               streetId: streetId
             });
+            if (residential) {
+              wmeSDK.DataModel.Venues.updateVenueIsResidential({
+                venueId: String(vid),
+                isResidential: true
+              });
+            }
             wmeSDK.DataModel.Venues.replaceNavigationPoints({
               venueId: String(vid),
               navigationPoints: [{
@@ -1504,7 +1505,8 @@
             return vid;
           };
 
-          let venueId = createVenue();
+          let venueId;
+          venueId = createVenue(true);
 
           // Lock last venue to level 2 if enabled and user has rank > 0
           if (LS.getLockRank2() && wmeSDK.State?.getUserInfo) {
