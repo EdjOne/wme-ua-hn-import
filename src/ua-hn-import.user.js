@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.8.97
+// @version     1.8.98
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1513,8 +1513,8 @@
               type: 'Point',
               coordinates: [snapLon + poiOffset, snapLat]
             };
-            createVenue(false, poiGeometry);
-            venueId = createVenue(true);
+            createVenue(true);                     // RPP first
+            venueId = createVenue(false, poiGeometry); // POI second
           } else {
             venueId = createVenue(true);
           }
