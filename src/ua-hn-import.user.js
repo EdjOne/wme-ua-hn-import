@@ -1471,7 +1471,7 @@
           };
 
           // Create venue(s): RPP only or POI + RPP depending on checkbox
-          const createVenue = (residential, geometryOverride) => {
+          const createVenue = (residential, geometryOverride, entryPointCoords) => {
             const g = geometryOverride || geometry;
             const coords = g.coordinates;
             const vid = wmeSDK.DataModel.Venues.addVenue({
@@ -1500,7 +1500,7 @@
                 isExit: true,
                 isPrimary: true,
                 name: '',
-                point: { type: 'Point', coordinates: [coords[0], coords[1]] }
+                point: { type: 'Point', coordinates: entryPointCoords || coords }
               }]
             });
             return vid;
@@ -1516,7 +1516,7 @@
             };
             const rppId = createVenue(true);                // RPP first
             venueIds.push(rppId);
-            venueId = createVenue(false, poiGeometry);      // POI second
+            venueId = createVenue(false, poiGeometry, [snapLon, snapLat]);      // POI second
             venueIds.push(venueId);
           } else {
             venueId = createVenue(true);
