@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.1
+// @version     1.9.2
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -548,14 +548,17 @@
 
             resolve({ features, streets, streetNames });
           } catch (err) {
-            reject(err);
+            console.warn('[UA-RPP] Waze API parse error:', err);
+            resolve({ features: [], streets: {}, streetNames: {} });
           }
         },
         onerror: function (err) {
-          reject(err);
+          console.warn('[UA-RPP] Waze API network error:', err);
+          resolve({ features: [], streets: {}, streetNames: {} });
         },
         ontimeout: function () {
-          reject(new Error('Waze API timeout'));
+          console.warn('[UA-RPP] Waze API timeout');
+          resolve({ features: [], streets: {}, streetNames: {} });
         }
       });
     });
@@ -636,7 +639,7 @@
             resolve({ features, streets: {}, streetNames: {} });
           } catch (e) {
             console.error('[Visicom] Parse error:', e, 'response:', response.responseText?.substring(0, 500));
-            reject(e);
+            resolve({ features: [], streets: {}, streetNames: {} });
           }
         },
         onerror: function(err) {
@@ -2056,10 +2059,10 @@
             return fetchAddressesWaze(centerLat, centerLon, radius);
           });
 
-          // OSM fetched separately below (async), only waze/visicom in Promise.all
-          // (previously this incorrectly added OSM to Promise.all causing double-fetch)
+          // OSM fetched separately below (async), only waze/visicom in Promise.allSettled
+          // (this safely skips any source that fails without blocking the others)
 
-          Promise.all(fetchPromises)
+          Promise.allSettled(fetchPromises)
             .then(results => {
               // Bail out if user clicked Clear
               if (loadId !== currentLoadId) {
@@ -2068,13 +2071,19 @@
                 return;
               }
               
-              // Merge results from all sources
+              // Merge results from all sources — skip any that failed
               let allFeatures = [];
               let allStreets = {};
               let allStreetNames = {};
               
               for (let i = 0; i < results.length; i++) {
-                const apiResult = results[i];
+                const r = results[i];
+                if (r.status === 'rejected') {
+                  const srcName = primarySources[i] || 'unknown';
+                  console.warn(`[UA-RPP] Джерело ${srcName} недоступне, пропускаємо. Помилка:`, r.reason);
+                  continue;
+                }
+                const apiResult = r.value;
                 allFeatures = allFeatures.concat(apiResult.features || []);
                 Object.assign(allStreets, apiResult.streets || {});
                 Object.assign(allStreetNames, apiResult.streetNames || {});
@@ -2208,12 +2217,10 @@
               resolve();
             })
             .catch(err => {
-              console.error('[UA-RPP] Помилка API:', err);
+              console.error('[UA-RPP] Помилка обробки даних:', err);
               loading.style.display = 'none';
               if (loadId === currentLoadId) {
-                const msg = err.message || 'Невідома помилка';
-                statusDiv.textContent = `Помилка: ${msg}`;
-                toast(`❌ Помилка завантаження: ${msg}`, 'error');
+                toast(`❌ Помилка: ${err.message || 'невідома помилка'}`, 'error');
               }
               resolve();
             });
