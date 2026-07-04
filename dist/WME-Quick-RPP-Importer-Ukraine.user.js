@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.0
+// @version     1.9.1
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1471,7 +1471,7 @@
           };
 
           // Create venue(s): RPP only or POI + RPP depending on checkbox
-          const createVenue = (residential, geometryOverride) => {
+          const createVenue = (residential, geometryOverride, entryPointCoords) => {
             const g = geometryOverride || geometry;
             const coords = g.coordinates;
             const vid = wmeSDK.DataModel.Venues.addVenue({
@@ -1500,7 +1500,7 @@
                 isExit: true,
                 isPrimary: true,
                 name: '',
-                point: { type: 'Point', coordinates: [coords[0], coords[1]] }
+                point: { type: 'Point', coordinates: entryPointCoords || coords }
               }]
             });
             return vid;
@@ -1516,7 +1516,7 @@
             };
             const rppId = createVenue(true);                // RPP first
             venueIds.push(rppId);
-            venueId = createVenue(false, poiGeometry);      // POI second
+            venueId = createVenue(false, poiGeometry, [snapLon, snapLat]);      // POI second
             venueIds.push(venueId);
           } else {
             venueId = createVenue(true);
