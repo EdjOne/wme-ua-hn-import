@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.4
+// @version     1.9.5
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1382,7 +1382,8 @@
           }
 
           // If marker specified a street and resolved street doesn't match — skip
-          if (feature.streetRaw && !useMarkerStreet && streetId === nearestStreetId) {
+          // BUT only if the match wasn't found via alternate street names (e.g. Більшовицька ↔ Дубовиця)
+          if (feature.streetRaw && !useMarkerStreet && streetId === nearestStreetId && !foundViaAlt) {
             const nearestStreet = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
             if (nearestStreet?.name) {
               const normalizedResolved = normalizeForComparison(cleanStreetName(nearestStreet.name));
