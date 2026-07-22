@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.5
+// @version     1.9.6
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1291,6 +1291,7 @@
           // If using marker's street name, try to find matching street in WME within 300m radius
           let streetId = nearestStreetId;
           let foundMatchingStreet = false;
+          let foundViaAlt = false;
 
           // If marker's street name matches an alternate of any nearby segment,
           // use the primary street — the marker's street is an outdated alias
