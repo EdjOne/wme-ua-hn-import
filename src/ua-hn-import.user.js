@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.2
+// @version     1.9.3
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1380,6 +1380,24 @@
               }
             }
           }
+
+          // If marker specified a street and resolved street doesn't match — skip
+          if (feature.streetRaw && !useMarkerStreet && streetId === nearestStreetId) {
+            const nearestStreet = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
+            if (nearestStreet?.name) {
+              const normalizedResolved = normalizeForComparison(cleanStreetName(nearestStreet.name));
+              const normalizedMarker = normalizeForComparison(cleanStreetName(feature.streetRaw));
+              if (!fuzzyStreetMatch(normalizedResolved, normalizedMarker)) {
+                const msg = `Маркер "${feature.streetRaw}" — RPP буде створено на "${nearestStreet.name}". Пропускаємо, перевір вручну.`;
+                if (!silent) toast(msg, 'warning');
+                else console.warn('[UA-RPP]', msg);
+                feature.processed = true;
+                pendingRppsAdded++;
+                return null;
+              }
+            }
+          }
+
           if (useMarkerStreet && effectiveStreetName) {
             const normalizedMarkerStreet = normalizeForComparison(effectiveStreetName);
             const allSegments = wmeSDK.DataModel.Segments.getAll();
