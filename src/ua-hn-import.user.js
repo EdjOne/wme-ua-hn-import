@@ -1392,7 +1392,6 @@
                 if (!silent) toast(msg, 'warning');
                 else console.warn('[UA-RPP]', msg);
                 feature.processed = true;
-                pendingRppsAdded++;
                 return null;
               }
             }
