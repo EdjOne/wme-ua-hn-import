@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.6
+// @version     1.9.7
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1298,7 +1298,7 @@
           if (feature.streetRaw && !useMarkerStreet) {
             const normalizedMarker = normalizeForComparison(cleanStreetName(feature.streetRaw));
             const allSegments = wmeSDK.DataModel.Segments.getAll();
-            let foundViaAlt = false;
+            foundViaAlt = false;
             for (const seg of allSegments) {
               if (!seg.alternateStreetIds?.length || !seg.primaryStreetId) continue;
               // Only consider segments within 300m of the marker
