@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.8
+// @version     1.9.9
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -152,12 +152,13 @@
     const coords = seg.geometry?.coordinates;
     if (!coords || coords.length < 2) return Infinity;
     let minKm = Infinity;
-    for (let i = 0; i < coords.length; i++) {
-      const c = coords[i];
-      const d = calculateDistance(lat, lon, c[1], c[0]);
-      if (d < minKm) minKm = d;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const p1 = coords[i], p2 = coords[i + 1];
+      if (!p1 || !p2) continue;
+      const proj = projectOnSegment(lon, lat, p1[0], p1[1], p2[0], p2[1]);
+      if (proj.dist < minKm) minKm = proj.dist;
     }
-    return minKm;
+    return minKm / 1000; // meters → km
   }
 
   function normalizeStreetName(name) {
