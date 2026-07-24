@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.9
+// @version     1.10.0
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1410,16 +1410,39 @@
             for (const seg of allSegments) {
               if (feature.lat && feature.lon && seg.geometry) {
                 const segDist = minDistanceToSegment(feature.lat, feature.lon, seg);
-                if (segDist > 0.3) continue;
+                if (segDist > 0.5) continue; // 500m radius for street name matching
               }
               if (seg.primaryStreetId) streetIds.add(seg.primaryStreetId);
               (seg.alternateStreetIds || []).forEach(id => streetIds.add(id));
             }
+            // First pass: check if matched street is an alternate of any nearby segment
+            // If so, use the PRIMARY street instead (e.g. "Малинова" → "Івана Дзюби")
             for (const id of streetIds) {
               const wmeStreet = wmeSDK.DataModel.Streets.getById({ streetId: id });
               if (wmeStreet?.name && normalizeForComparison(wmeStreet.name) === normalizedMarkerStreet) {
-                streetId = id;
-                foundMatchingStreet = true;
+                // Check if this street ID is an alternate of a nearby segment
+                let foundPrimary = false;
+                for (const seg of allSegments) {
+                  if (seg.primaryStreetId === id) continue; // skip if it IS the primary
+                  if (!seg.alternateStreetIds?.length) continue;
+                  if (seg.alternateStreetIds.includes(id)) {
+                    // This street is an alternate — use the segment's primary
+                    const primaryStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+                    if (primaryStreet?.name) {
+                      streetId = seg.primaryStreetId;
+                      foundMatchingStreet = true;
+                      foundPrimary = true;
+                      console.log(`[UA-RPP] useMarker: "${effectiveStreetName}" is alternate → using primary "${primaryStreet.name}"`);
+                      break;
+                    }
+                  }
+                }
+                if (!foundPrimary) {
+                  // Street is a primary of some segment — use it directly
+                  streetId = id;
+                  foundMatchingStreet = true;
+                  console.log(`[UA-RPP] useMarker: "${effectiveStreetName}" matched as primary street`);
+                }
                 break;
               }
             }
@@ -1430,9 +1453,27 @@
                 if (wmeStreet?.name) {
                   const wmeNorm = normalizeForComparison(wmeStreet.name);
                   if (fuzzyStreetMatch(wmeNorm, normalizedMarkerStreet)) {
-                    streetId = id;
-                    foundMatchingStreet = true;
-                    console.log('[UA-RPP] Fuzzy match:', wmeStreet.name, '≈', effectiveStreetName);
+                    // Same logic: if alternate → use primary
+                    let foundPrimary = false;
+                    for (const seg of allSegments) {
+                      if (seg.primaryStreetId === id) continue;
+                      if (!seg.alternateStreetIds?.length) continue;
+                      if (seg.alternateStreetIds.includes(id)) {
+                        const primaryStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+                        if (primaryStreet?.name) {
+                          streetId = seg.primaryStreetId;
+                          foundMatchingStreet = true;
+                          foundPrimary = true;
+                          console.log('[UA-RPP] Fuzzy useMarker: ', wmeStreet.name, '≈', effectiveStreetName, '→ primary', primaryStreet.name);
+                          break;
+                        }
+                      }
+                    }
+                    if (!foundPrimary) {
+                      streetId = id;
+                      foundMatchingStreet = true;
+                      console.log('[UA-RPP] Fuzzy match:', wmeStreet.name, '≈', effectiveStreetName);
+                    }
                     break;
                   }
                 }
@@ -1445,9 +1486,26 @@
                 if (wmeStreet?.name) {
                   const wmeNorm = normalizeForComparison(cleanStreetName(wmeStreet.name));
                   if (wmeNorm === normalizedMarkerStreet || fuzzyStreetMatch(wmeNorm, normalizedMarkerStreet)) {
-                    streetId = id;
-                    foundMatchingStreet = true;
-                    console.log('[UA-RPP] Cleaned match:', wmeStreet.name, '→', effectiveStreetName);
+                    let foundPrimary = false;
+                    for (const seg of allSegments) {
+                      if (seg.primaryStreetId === id) continue;
+                      if (!seg.alternateStreetIds?.length) continue;
+                      if (seg.alternateStreetIds.includes(id)) {
+                        const primaryStreet = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+                        if (primaryStreet?.name) {
+                          streetId = seg.primaryStreetId;
+                          foundMatchingStreet = true;
+                          foundPrimary = true;
+                          console.log('[UA-RPP] Cleaned useMarker:', wmeStreet.name, '→', effectiveStreetName, '→ primary', primaryStreet.name);
+                          break;
+                        }
+                      }
+                    }
+                    if (!foundPrimary) {
+                      streetId = id;
+                      foundMatchingStreet = true;
+                      console.log('[UA-RPP] Cleaned match:', wmeStreet.name, '→', effectiveStreetName);
+                    }
                     break;
                   }
                 }
