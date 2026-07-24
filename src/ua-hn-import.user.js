@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.11.1
+// @version     1.11.2
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -40,7 +40,7 @@
 
   let wmeSDK;
   const SDK_LAYER_NAME = 'qhnua-sdk';
-  const MAX_CLICK_DISTANCE_PX = 25;
+  const MAX_CLICK_DISTANCE_PX = 35;
   const MAX_RPP_CONFLICT_DISTANCE = 0.001; // ~111 meters at 49° latitude
 
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
