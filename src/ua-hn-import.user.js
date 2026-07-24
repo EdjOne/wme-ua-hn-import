@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.10.2
+// @version     1.11.0
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1189,7 +1189,50 @@
          * @param {boolean} silent - When true, skip toast for validation failures (batch mode).
          * @returns {{houseNumber: string, streetId: number}|null} Result object on success, null on validation skip.
          */
-        function createSingleRPP(feature, silent) {
+
+        // Calculate distance to segment (in pixels) — extracted for reuse in findNearestNamedSegment
+        function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          if (dx === 0 && dy === 0) {
+            return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+          }
+          const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+          const closestX = x1 + t * dx;
+          const closestY = y1 + t * dy;
+          return Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
+        }
+
+        // Find the nearest named segment (skip unnamed roads)
+        function findNearestNamedSegment(lat, lon, segments) {
+          const pointPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon, lat } });
+          if (!pointPx) return null;
+          let bestSeg = null;
+          let bestDist = Infinity;
+          for (const seg of segments) {
+            const street = wmeSDK.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+            if (!street?.name) continue;
+            const nameLower = street.name.toLowerCase().trim();
+            if (/^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(nameLower)) continue;
+            const coords = seg.geometry?.coordinates;
+            if (!Array.isArray(coords) || coords.length < 2) continue;
+            for (let i = 0; i < coords.length - 1; i++) {
+              const p1 = coords[i], p2 = coords[i + 1];
+              if (!p1 || !p2) continue;
+              const p1Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p1[0], lat: p1[1] } });
+              const p2Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p2[0], lat: p2[1] } });
+              if (!p1Px || !p2Px) continue;
+              const d = pointToSegmentDist(pointPx.x, pointPx.y, p1Px.x, p1Px.y, p2Px.x, p2Px.y);
+              if (d < bestDist) {
+                bestDist = d;
+                bestSeg = seg;
+              }
+            }
+          }
+          return bestSeg;
+        }
+
+        function createSingleRPP(feature, silent, forceUseNearest) {
           if (feature.processed) return null;
           if (typeof feature.lat !== 'number' || typeof feature.lon !== 'number' || isNaN(feature.lat) || isNaN(feature.lon)) {
             if (!silent) console.warn('[UA-RPP] Invalid coordinates for feature:', feature);
@@ -1206,19 +1249,6 @@
           let nearestStreetId = null;
           let nearestSegment = null;
           let minDist = Infinity;
-
-          // Calculate distance to segment (in pixels)
-          function pointToSegmentDist(px, py, x1, y1, x2, y2) {
-            const dx = x2 - x1;
-            const dy = y2 - y1;
-            if (dx === 0 && dy === 0) {
-              return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
-            }
-            const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
-            const closestX = x1 + t * dx;
-            const closestY = y1 + t * dy;
-            return Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
-          }
 
           // Convert feature coords to pixel coords
           const featurePx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: featureLon, lat: featureLat } });
@@ -1262,10 +1292,25 @@
           const isNamedUnnamed = streetNameLower && 
               /^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(streetNameLower.trim());
           if (isNamedUnnamed) {
-            const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
-            if (!silent) toast(msg, 'warning');
-            else console.warn('[UA-RPP]', msg);
-            return null;
+            // In single-click mode, try to find nearest named segment instead of aborting
+            if (forceUseNearest) {
+              const namedSeg = findNearestNamedSegment(feature.lat, feature.lon, segments);
+              if (namedSeg) {
+                nearestStreetId = namedSeg.primaryStreetId;
+                nearestSegment = namedSeg;
+                console.log(`[UA-RPP] Nearest segment unnamed, using nearest named: ${wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId })?.name}`);
+              } else {
+                const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
+                if (!silent) toast(msg, 'warning');
+                else console.warn('[UA-RPP]', msg);
+                return null;
+              }
+            } else {
+              const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
+              if (!silent) toast(msg, 'warning');
+              else console.warn('[UA-RPP]', msg);
+              return null;
+            }
           }
 
           // If segment lacks street name, use the one from the marker
@@ -1387,7 +1432,8 @@
 
           // If marker specified a street and resolved street doesn't match — skip
           // BUT only if the match wasn't found via alternate street names (e.g. Більшовицька ↔ Дубовиця)
-          if (feature.streetRaw && !useMarkerStreet && streetId === nearestStreetId && !foundViaAlt) {
+          // In single-click mode (forceUseNearest), skip this check — just use nearest segment street
+          if (!forceUseNearest && feature.streetRaw && !useMarkerStreet && streetId === nearestStreetId && !foundViaAlt) {
             const nearestStreet = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
             if (nearestStreet?.name) {
               const normalizedResolved = normalizeForComparison(cleanStreetName(nearestStreet.name));
@@ -1512,10 +1558,16 @@
               }
             }
             if (!foundMatchingStreet) {
-              const msg = `Не знайдено вулиці "${effectiveStreetName}" в радіусі 300м`;
-              if (!silent) toast(msg, 'warning');
-              else console.warn('[UA-RPP]', msg);
-              return null;
+              // In single-click mode, fall back to nearest segment's street instead of aborting
+              if (forceUseNearest) {
+                streetId = nearestStreetId;
+                console.log(`[UA-RPP] useMarker: no match for "${effectiveStreetName}", using nearest segment street`);
+              } else {
+                const msg = `Не знайдено вулиці "${effectiveStreetName}" в радіусі 300м`;
+                if (!silent) toast(msg, 'warning');
+                else console.warn('[UA-RPP]', msg);
+                return null;
+              }
             }
           }
 
@@ -1647,7 +1699,7 @@
 
         function onFeatureClick(feature) {
           try {
-            const result = createSingleRPP(feature);
+            const result = createSingleRPP(feature, false, true);
             if (!result) return;
 
             feature.userAdded = true;
