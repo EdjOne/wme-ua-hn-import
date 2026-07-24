@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.9.7
+// @version     1.9.8
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1294,8 +1294,10 @@
           let foundViaAlt = false;
 
           // If marker's street name matches an alternate of any nearby segment,
-          // use the primary street — the marker's street is an outdated alias
-          if (feature.streetRaw && !useMarkerStreet) {
+          // use the primary street — the marker's street is an outdated alias.
+          // Run this even when nearest segment is unnamed (useMarkerStreet=true) —
+          // the marker's street might match an alternate on a nearby named segment.
+          if (feature.streetRaw) {
             const normalizedMarker = normalizeForComparison(cleanStreetName(feature.streetRaw));
             const allSegments = wmeSDK.DataModel.Segments.getAll();
             foundViaAlt = false;
@@ -1399,7 +1401,8 @@
             }
           }
 
-          if (useMarkerStreet && effectiveStreetName) {
+          // If we already found a matching street via alternate names, skip this search
+          if (useMarkerStreet && effectiveStreetName && !foundViaAlt) {
             const normalizedMarkerStreet = normalizeForComparison(effectiveStreetName);
             const allSegments = wmeSDK.DataModel.Segments.getAll();
             const streetIds = new Set();
