@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.11.0
+// @version     1.11.1
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1205,8 +1205,6 @@
 
         // Find the nearest named segment (skip unnamed roads)
         function findNearestNamedSegment(lat, lon, segments) {
-          const pointPx = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon, lat } });
-          if (!pointPx) return null;
           let bestSeg = null;
           let bestDist = Infinity;
           for (const seg of segments) {
@@ -1214,17 +1212,12 @@
             if (!street?.name) continue;
             const nameLower = street.name.toLowerCase().trim();
             if (/^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(nameLower)) continue;
-            const coords = seg.geometry?.coordinates;
-            if (!Array.isArray(coords) || coords.length < 2) continue;
-            for (let i = 0; i < coords.length - 1; i++) {
-              const p1 = coords[i], p2 = coords[i + 1];
-              if (!p1 || !p2) continue;
-              const p1Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p1[0], lat: p1[1] } });
-              const p2Px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: p2[0], lat: p2[1] } });
-              if (!p1Px || !p2Px) continue;
-              const d = pointToSegmentDist(pointPx.x, pointPx.y, p1Px.x, p1Px.y, p2Px.x, p2Px.y);
-              if (d < bestDist) {
-                bestDist = d;
+            // Check real-world distance (perpendicular), skip if >500m
+            if (seg.geometry?.coordinates?.length > 0) {
+              const segDistKm = minDistanceToSegment(lat, lon, seg);
+              if (segDistKm > 0.5) continue;
+              if (segDistKm < bestDist) {
+                bestDist = segDistKm;
                 bestSeg = seg;
               }
             }
@@ -1560,6 +1553,14 @@
             if (!foundMatchingStreet) {
               // In single-click mode, fall back to nearest segment's street instead of aborting
               if (forceUseNearest) {
+                // Check if nearest street is unnamed — still abort in that case
+                const nearestStreetName = (wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId })?.name || '').toLowerCase().trim();
+                if (/^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(nearestStreetName)) {
+                  const msg = 'Не знайдено вулиці з назвою біля маркера';
+                  if (!silent) toast(msg, 'warning');
+                  else console.warn('[UA-RPP]', msg);
+                  return null;
+                }
                 streetId = nearestStreetId;
                 console.log(`[UA-RPP] useMarker: no match for "${effectiveStreetName}", using nearest segment street`);
               } else {
