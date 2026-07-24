@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.10.0
+// @version     1.10.1
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -369,11 +369,11 @@
     // Remove extra whitespace
     normalized = normalized.replace(/\s+/g, ' ').trim();
 
-    // Remove street-name initials: single Cyrillic/Latin letter + dot followed by space
-    // e.g. "л. українки" → "українки" (matches "лесі українки" in WME)
-    // Handles: Л. Українки, Т. Шевченка, М. Грушевського, etc.
-    normalized = normalized.replace(/^[а-яіїєґa-z]\s*\.\s+/, '');
-    normalized = normalized.replace(/\s[а-яіїєґa-z]\s*\.\s/g, ' ');
+    // Remove street-name initials: up to 3 Cyrillic/Latin letters + dot followed by space
+    // e.g. "л. українки" → "українки", "ів. франка" → "франка" (matches "івана франка")
+    // Also handles: Т. Шевченка, М. Грушевського, Ів. Франка, etc.
+    normalized = normalized.replace(/^[а-яіїєґa-z]{1,3}\s*\.\s+/, '');
+    normalized = normalized.replace(/\s[а-яіїєґa-z]{1,3}\s*\.\s/g, ' ');
 
     return normalized.trim();
   }
