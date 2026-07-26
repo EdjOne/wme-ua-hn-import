@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.12.3
+// @version     1.12.4
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1035,6 +1035,33 @@
     let _holdFeature = null;
     let _holdBannerVisible = false;
     let _holdHandled = false;
+    let _mouseDownPos = null;
+
+    function _findFeatureAt(clientX, clientY) {
+      if (!lastFeatures.length) return null;
+      const MAX_PX = MAX_CLICK_DISTANCE_PX;
+      const MAX_PX_SQ = MAX_PX * MAX_PX;
+      let best = null, bestDist = Infinity;
+      for (const f of lastFeatures) {
+        if (f.lon == null || f.lat == null || isNaN(f.lon) || isNaN(f.lat)) continue;
+        const px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
+        if (!px) continue;
+        const dx = px.x - clientX;
+        const dy = px.y - clientY;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= MAX_PX_SQ && d2 < bestDist) {
+          bestDist = d2;
+          best = f;
+        }
+      }
+      return best;
+    }
+
+    function _getStreetNameForFeature(feat) {
+      if (feat.streetRaw) return feat.streetRaw;
+      if (feat.street && streetNames[feat.street]) return streetNames[feat.street];
+      return '';
+    }
 
     document.addEventListener('mousedown', (e) => {
       altClickPending = e.altKey;
@@ -1042,43 +1069,24 @@
       _holdFeature = null;
       _holdHandled = false;
       clearTimeout(_holdBannerTimer);
+      _mouseDownPos = { x: e.clientX ?? e.x, y: e.clientY ?? e.y };
 
-      // Don't start hold timer for Alt+click
       if (e.altKey) return;
+      if (!lastFeatures.length || !_mouseDownPos.x == null) return;
 
-      // Find if we're on a marker
-      const x = e.clientX ?? e.x;
-      const y = e.clientY ?? e.y;
-      if (x == null || y == null) return;
-      if (!lastFeatures.length) return;
-
-      const MAX_PX = MAX_CLICK_DISTANCE_PX;
-      const MAX_PX_SQ = MAX_PX * MAX_PX;
-      let best = null, bestDist = Infinity;
-      for (const f of lastFeatures) {
-        if (f.lon == null || f.lat == null) continue;
-        const px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
-        if (!px) continue;
-        const dx = px.x - x;
-        const dy = px.y - y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 <= MAX_PX_SQ && d2 < bestDist) {
-          bestDist = d2;
-          best = f;
-        }
-      }
-      if (!best) return;
-
-      // Found a marker — remember it and start hold timer
-      _holdFeature = best;
       _holdBannerTimer = setTimeout(() => {
-        if (!_holdFeature?.streetRaw) return;
-        _holdBannerVisible = true;
-        const wazeStreet = formatStreetForWaze(_holdFeature.streetRaw);
+        const feat = _findFeatureAt(_mouseDownPos.x, _mouseDownPos.y);
+        if (!feat) return;
 
-        // Position banner near the marker on screen
+        const streetName = _getStreetNameForFeature(feat);
+        if (!streetName) return;
+
+        _holdFeature = feat;
+        _holdBannerVisible = true;
+        const wazeStreet = formatStreetForWaze(streetName);
+
         const markerPx = wmeSDK.Map.getMapPixelFromLonLat({
-          lonLat: { lon: _holdFeature.lon, lat: _holdFeature.lat }
+          lonLat: { lon: feat.lon, lat: feat.lat }
         });
         if (!markerPx) return;
 
@@ -1103,26 +1111,26 @@
     document.addEventListener('mouseup', () => {
       clearTimeout(_holdBannerTimer);
 
-      // If banner was shown — copy street name, update banner, fade out
-      if (_holdBannerVisible && _holdFeature?.streetRaw) {
-        const wazeStreet = formatStreetForWaze(_holdFeature.streetRaw);
-        copyToClipboard(wazeStreet);
+      if (_holdBannerVisible && _holdFeature) {
+        const streetName = _getStreetNameForFeature(_holdFeature);
+        if (streetName) {
+          const wazeStreet = formatStreetForWaze(streetName);
+          copyToClipboard(wazeStreet);
 
-        if (_holdBannerEl) {
-          _holdBannerEl.textContent = `✅ Скопійовано: ${wazeStreet}`;
-          setTimeout(() => {
-            if (_holdBannerEl) {
-              _holdBannerEl.style.opacity = '0';
-              setTimeout(removeHoldBanner, 300);
-            }
-          }, 2500);
+          if (_holdBannerEl) {
+            _holdBannerEl.textContent = `✅ Скопійовано: ${wazeStreet}`;
+            setTimeout(() => {
+              if (_holdBannerEl) {
+                _holdBannerEl.style.opacity = '0';
+                setTimeout(removeHoldBanner, 300);
+              }
+            }, 2500);
+          }
         }
         _holdBannerVisible = false;
         _holdHandled = true;
-        return;  // prevent RPP creation — handled by the hold
+        return;
       }
-
-      // Short click — RPP will be handled by wme-map-mouse-click
     }, { capture: true, passive: true });
 
     let applyFeatureFilter = () => {};
