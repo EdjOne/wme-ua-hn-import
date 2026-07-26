@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.11.2
+// @version     1.11.3
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1584,7 +1584,10 @@
           let snapLon = feature.lon;
           let snapLat = feature.lat;
           if (LS.getSnapToRoad()) {
-            const snapResult = snapToNearestRoad(feature.lon, feature.lat, streetId);
+            // Single click: snap to nearest segment regardless of street (visual position)
+            // Batch: snap to preferred street's segment only
+            const preferredForSnap = forceUseNearest ? null : streetId;
+            const snapResult = snapToNearestRoad(feature.lon, feature.lat, preferredForSnap);
             if (snapResult) {
               snapLon = snapResult.lon;
               snapLat = snapResult.lat;
