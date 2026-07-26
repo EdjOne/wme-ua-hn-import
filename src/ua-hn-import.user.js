@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.12.6
+// @version     1.12.7
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1037,9 +1037,21 @@
     let _holdHandled = false;
     let _mouseDownPos = null;
     let _currentMousePos = { x: 0, y: 0 };
+    let _mapOffset = null;
+
+    function _getMapOffset() {
+      if (_mapOffset) return _mapOffset;
+      const mapEl = document.querySelector('#map-container, #WazeMap, .ol-viewport, .map-container') || document.body;
+      const rect = mapEl.getBoundingClientRect();
+      _mapOffset = { x: rect.left, y: rect.top };
+      return _mapOffset;
+    }
 
     function _findFeatureAt(clientX, clientY) {
       if (!lastFeatures.length) { console.log('[HOLD-DEBUG] _findFeatureAt: no lastFeatures'); return null; }
+      const off = _getMapOffset();
+      const mapX = clientX - off.x;
+      const mapY = clientY - off.y;
       const MAX_PX = MAX_CLICK_DISTANCE_PX;
       const MAX_PX_SQ = MAX_PX * MAX_PX;
       let best = null, bestDist = Infinity;
@@ -1047,15 +1059,15 @@
         if (f.lon == null || f.lat == null || isNaN(f.lon) || isNaN(f.lat)) { console.log('[HOLD-DEBUG] skip feature: bad coords', f.number, f.lon, f.lat); continue; }
         const px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
         if (!px) { console.log('[HOLD-DEBUG] skip feature: no pixel', f.number); continue; }
-        const dx = px.x - clientX;
-        const dy = px.y - clientY;
+        const dx = px.x - mapX;
+        const dy = px.y - mapY;
         const d2 = dx * dx + dy * dy;
         if (d2 <= MAX_PX_SQ && d2 < bestDist) {
           bestDist = d2;
           best = f;
         }
       }
-      console.log('[HOLD-DEBUG] _findFeatureAt result:', best ? best.number + ' ' + best.streetRaw : 'null', 'dist:', bestDist);
+      console.log('[HOLD-DEBUG] _findFeatureAt result:', best ? best.number + ' ' + best.streetRaw : 'null', 'dist:', bestDist, 'mapPos:', mapX, mapY);
       return best;
     }
 
