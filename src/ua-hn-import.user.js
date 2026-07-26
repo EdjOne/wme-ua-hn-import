@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.12.1
+// @version     1.12.2
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -108,16 +108,35 @@
   };
 
   const toast = (msg, type = 'info') => {
+    // Always use WME notifications when available
     try {
       if (wmeSDK?.Notifications?.show) {
         wmeSDK.Notifications.show({ text: msg, type, timeout: 3500 });
-      } else {
-        console.info(`[UA-RPP] ${msg}`);
       }
-    } catch (_) {
-      console.info(`[UA-RPP] ${msg}`);
-    }
+    } catch (_) {}
+    // Also log to console
+    console.info(`[UA-RPP] ${msg}`);
   };
+
+  // Custom DOM toast — guaranteed to show even if WME Notifications fail
+  function showCopyToast(text) {
+    // Try WME toast in background mode (no type)
+    try {
+      if (wmeSDK?.Notifications?.show) {
+        wmeSDK.Notifications.show({ text, timeout: 4000 });
+      }
+    } catch (_) {}
+    // Plus DOM toast as guaranteed fallback
+    const el = document.createElement('div');
+    el.textContent = text;
+    el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;background:#333;color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,0.3);opacity:0;transition:opacity 0.3s;pointer-events:none;';
+    document.body.appendChild(el);
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+    setTimeout(() => {
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 300);
+    }, 3000);
+  }
 
   // Check for existing venue with same houseNumber + streetId (RPP duplicate detection)
   function hasDuplicate(houseNumber, streetId, isResidential = true) {
@@ -1011,14 +1030,11 @@
 
     // Capture Alt key from real DOM event (WME SDK strips modifier keys)
     let altClickPending = false;
+    let _mouseDownTime = 0;
     document.addEventListener('mousedown', (e) => {
       altClickPending = e.altKey;
+      _mouseDownTime = Date.now();
     }, { capture: true, passive: true });
-
-    // Double-click detection state
-    let _singleClickTimer = null;
-    let _singleClickFeature = null;
-    let _singleClickTime = 0;
 
     let applyFeatureFilter = () => {};
 
@@ -1189,8 +1205,6 @@
       // Alt+click = create 1 RPP for clicked marker + batch all other unprocessed
       if (altClickPending) {
         altClickPending = false;
-        clearTimeout(_singleClickTimer);
-        _singleClickTimer = null;
         // First create single RPP (saves source+street to batchContext)
         onFeatureClick(bestFeature);
         // Then batch all remaining unprocessed of same source+street
@@ -1198,31 +1212,16 @@
         return;
       }
 
-      // Double-click detection: if the same feature was clicked within 350ms, copy street name
-      const now = Date.now();
-      if (_singleClickFeature === bestFeature && now - _singleClickTime < 400) {
-        clearTimeout(_singleClickTimer);
-        _singleClickTimer = null;
-        _singleClickFeature = null;
-        // Copy street name to clipboard
-        const streetRaw = bestFeature.streetRaw || '';
-        if (streetRaw) {
-          const wazeStreet = formatStreetForWaze(streetRaw);
-          copyToClipboard(wazeStreet);
-          toast(`Скопійовано: ${wazeStreet} 📋`);
-        }
+      // Long press (≥500ms) on a marker = copy street name to clipboard
+      const holdDuration = Date.now() - _mouseDownTime;
+      if (holdDuration >= 500 && bestFeature?.streetRaw) {
+        const wazeStreet = formatStreetForWaze(bestFeature.streetRaw);
+        copyToClipboard(wazeStreet);
+        showCopyToast(`Скопійовано: ${wazeStreet} 📋`);
         return;
       }
 
-      // First click — defer RPP creation by 350ms to allow double-click detection
-      _singleClickFeature = bestFeature;
-      _singleClickTime = now;
-      clearTimeout(_singleClickTimer);
-      _singleClickTimer = setTimeout(() => {
-        _singleClickTimer = null;
-        _singleClickFeature = null;
-        onFeatureClick(bestFeature);
-      }, 350);
+      onFeatureClick(bestFeature);
     }
 
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
