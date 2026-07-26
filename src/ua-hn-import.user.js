@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.11.6
+// @version     1.11.7
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1281,9 +1281,9 @@
           // Check if street has a name (RPP cannot be created without street name)
           const street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
 
-          const streetNameLower = street?.name?.toLowerCase() || '';
-          const isNamedUnnamed = streetNameLower && 
-              /^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(streetNameLower.trim());
+          const streetNameLower = street?.name?.toLowerCase().trim() || '';
+          const isNamedUnnamed = !streetNameLower || 
+              /^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(streetNameLower);
           if (isNamedUnnamed) {
             const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
             if (!silent) toast(msg, 'warning');
