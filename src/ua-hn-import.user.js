@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.11.5
+// @version     1.11.6
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1327,10 +1327,6 @@
             foundViaAlt = false;
             for (const seg of allSegments) {
               if (!seg.alternateStreetIds?.length || !seg.primaryStreetId) continue;
-              // Only consider segments within 300m of the marker
-              if (feature.lat && feature.lon && seg.geometry?.coordinates?.length > 0) {
-                if (minDistanceToSegment(feature.lat, feature.lon, seg) > 0.3) continue;
-              }
               // Check if this segment has the marker's street as an alternate
               for (const altId of seg.alternateStreetIds) {
                 const altStreet = wmeSDK.DataModel.Streets.getById({ streetId: altId });
