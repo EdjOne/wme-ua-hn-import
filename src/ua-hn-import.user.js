@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.12.5
+// @version     1.12.6
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1036,6 +1036,7 @@
     let _holdBannerVisible = false;
     let _holdHandled = false;
     let _mouseDownPos = null;
+    let _currentMousePos = { x: 0, y: 0 };
 
     function _findFeatureAt(clientX, clientY) {
       if (!lastFeatures.length) { console.log('[HOLD-DEBUG] _findFeatureAt: no lastFeatures'); return null; }
@@ -1065,6 +1066,11 @@
       return '';
     }
 
+    document.addEventListener('mousemove', (e) => {
+      _currentMousePos.x = e.clientX ?? e.x;
+      _currentMousePos.y = e.clientY ?? e.y;
+    }, { capture: true, passive: true });
+
     document.addEventListener('mousedown', (e) => {
       altClickPending = e.altKey;
       _holdBannerVisible = false;
@@ -1077,8 +1083,8 @@
       if (!lastFeatures.length || !_mouseDownPos.x == null) return;
 
       _holdBannerTimer = setTimeout(() => {
-        const feat = _findFeatureAt(_mouseDownPos.x, _mouseDownPos.y);
-        if (!feat) { console.log('[HOLD-DEBUG] banner timeout: no feat found'); return; }
+        const feat = _findFeatureAt(_currentMousePos.x, _currentMousePos.y);
+        if (!feat) { console.log('[HOLD-DEBUG] banner timeout: no feat found at', _currentMousePos.x, _currentMousePos.y); return; }
 
         const streetName = _getStreetNameForFeature(feat);
         if (!streetName) { console.log('[HOLD-DEBUG] banner timeout: no streetName', feat.number); return; }
