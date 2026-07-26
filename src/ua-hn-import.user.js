@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.11.7
+// @version     1.12.0
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -387,6 +387,68 @@
   function cleanStreetName(name) {
     if (!name) return name;
     return String(name).split('(')[0].trim();
+  }
+
+  // Format street name for Waze: abbreviated status prefix first
+  // "вулиця Перемоги" → "вул. Перемоги", "Перемоги вулиця" → "вул. Перемоги"
+  function formatStreetForWaze(rawStreet) {
+    if (!rawStreet) return '';
+    let street = cleanStreetName(rawStreet).trim();
+    if (!street) return '';
+
+    const FULL_TO_ABBR = {
+      'вулиця': 'вул.',
+      'провулок': 'пров.',
+      'проспект': 'просп.',
+      'бульвар': 'бульв.',
+      'площа': 'пл.',
+      'майдан': 'м-н',
+      'узвіз': 'узв.',
+      'набережна': 'наб.',
+      'шосе': 'шосе',
+      'тупик': 'туп.',
+      'проїзд': 'пр.'
+    };
+    const ABBR_TYPES = Object.values(FULL_TO_ABBR);
+
+    // Already has abbreviated prefix → return as-is
+    for (const a of ABBR_TYPES) {
+      if (new RegExp('^' + a.replace('.', '\\.') + '\\s+', 'i').test(street)) return street;
+    }
+
+    // Starts with full type word
+    for (const [full, abbr] of Object.entries(FULL_TO_ABBR)) {
+      const re = new RegExp('^' + full + '\\s+', 'i');
+      if (re.test(street)) return abbr + ' ' + street.replace(re, '');
+    }
+
+    // Ends with full type word
+    for (const [full, abbr] of Object.entries(FULL_TO_ABBR)) {
+      const re = new RegExp('\\s+' + full + '$', 'i');
+      if (re.test(street)) return abbr + ' ' + street.replace(re, '');
+    }
+
+    // Default: вул. + name
+    return 'вул. ' + street;
+  }
+
+  function copyToClipboard(text) {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+    } catch (e) {
+      console.warn('[UA-RPP] Copy failed:', e);
+    }
   }
 
 // Normalize house number: fix fractions and letter case
@@ -953,6 +1015,11 @@
       altClickPending = e.altKey;
     }, { capture: true, passive: true });
 
+    // Double-click detection state
+    let _singleClickTimer = null;
+    let _singleClickFeature = null;
+    let _singleClickTime = 0;
+
     let applyFeatureFilter = () => {};
 
     try {
@@ -1122,6 +1189,8 @@
       // Alt+click = create 1 RPP for clicked marker + batch all other unprocessed
       if (altClickPending) {
         altClickPending = false;
+        clearTimeout(_singleClickTimer);
+        _singleClickTimer = null;
         // First create single RPP (saves source+street to batchContext)
         onFeatureClick(bestFeature);
         // Then batch all remaining unprocessed of same source+street
@@ -1129,7 +1198,31 @@
         return;
       }
 
-      onFeatureClick(bestFeature);
+      // Double-click detection: if the same feature was clicked within 350ms, copy street name
+      const now = Date.now();
+      if (_singleClickFeature === bestFeature && now - _singleClickTime < 400) {
+        clearTimeout(_singleClickTimer);
+        _singleClickTimer = null;
+        _singleClickFeature = null;
+        // Copy street name to clipboard
+        const streetRaw = bestFeature.streetRaw || '';
+        if (streetRaw) {
+          const wazeStreet = formatStreetForWaze(streetRaw);
+          copyToClipboard(wazeStreet);
+          toast(`Скопійовано: ${wazeStreet} 📋`, 'success');
+        }
+        return;
+      }
+
+      // First click — defer RPP creation by 350ms to allow double-click detection
+      _singleClickFeature = bestFeature;
+      _singleClickTime = now;
+      clearTimeout(_singleClickTimer);
+      _singleClickTimer = setTimeout(() => {
+        _singleClickTimer = null;
+        _singleClickFeature = null;
+        onFeatureClick(bestFeature);
+      }, 350);
     }
 
     wmeSDK.Events.on({ eventName: 'wme-map-mouse-click', eventHandler: handleMapClick });
