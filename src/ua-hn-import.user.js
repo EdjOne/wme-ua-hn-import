@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.12.4
+// @version     1.12.5
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1038,14 +1038,14 @@
     let _mouseDownPos = null;
 
     function _findFeatureAt(clientX, clientY) {
-      if (!lastFeatures.length) return null;
+      if (!lastFeatures.length) { console.log('[HOLD-DEBUG] _findFeatureAt: no lastFeatures'); return null; }
       const MAX_PX = MAX_CLICK_DISTANCE_PX;
       const MAX_PX_SQ = MAX_PX * MAX_PX;
       let best = null, bestDist = Infinity;
       for (const f of lastFeatures) {
-        if (f.lon == null || f.lat == null || isNaN(f.lon) || isNaN(f.lat)) continue;
+        if (f.lon == null || f.lat == null || isNaN(f.lon) || isNaN(f.lat)) { console.log('[HOLD-DEBUG] skip feature: bad coords', f.number, f.lon, f.lat); continue; }
         const px = wmeSDK.Map.getMapPixelFromLonLat({ lonLat: { lon: f.lon, lat: f.lat } });
-        if (!px) continue;
+        if (!px) { console.log('[HOLD-DEBUG] skip feature: no pixel', f.number); continue; }
         const dx = px.x - clientX;
         const dy = px.y - clientY;
         const d2 = dx * dx + dy * dy;
@@ -1054,12 +1054,14 @@
           best = f;
         }
       }
+      console.log('[HOLD-DEBUG] _findFeatureAt result:', best ? best.number + ' ' + best.streetRaw : 'null', 'dist:', bestDist);
       return best;
     }
 
     function _getStreetNameForFeature(feat) {
       if (feat.streetRaw) return feat.streetRaw;
       if (feat.street && streetNames[feat.street]) return streetNames[feat.street];
+      console.log('[HOLD-DEBUG] _getStreetNameForFeature: no name for', feat.number, 'streetId:', feat.street);
       return '';
     }
 
@@ -1076,19 +1078,20 @@
 
       _holdBannerTimer = setTimeout(() => {
         const feat = _findFeatureAt(_mouseDownPos.x, _mouseDownPos.y);
-        if (!feat) return;
+        if (!feat) { console.log('[HOLD-DEBUG] banner timeout: no feat found'); return; }
 
         const streetName = _getStreetNameForFeature(feat);
-        if (!streetName) return;
+        if (!streetName) { console.log('[HOLD-DEBUG] banner timeout: no streetName', feat.number); return; }
 
         _holdFeature = feat;
         _holdBannerVisible = true;
         const wazeStreet = formatStreetForWaze(streetName);
+        console.log('[HOLD-DEBUG] banner show:', wazeStreet, 'at', feat.lon, feat.lat);
 
         const markerPx = wmeSDK.Map.getMapPixelFromLonLat({
           lonLat: { lon: feat.lon, lat: feat.lat }
         });
-        if (!markerPx) return;
+        if (!markerPx) { console.log('[HOLD-DEBUG] banner: no marker pixel'); return; }
 
         removeHoldBanner();
         const el = document.createElement('div');
@@ -1115,6 +1118,7 @@
         const streetName = _getStreetNameForFeature(_holdFeature);
         if (streetName) {
           const wazeStreet = formatStreetForWaze(streetName);
+          console.log('[HOLD-DEBUG] mouseup — copying:', wazeStreet);
           copyToClipboard(wazeStreet);
 
           if (_holdBannerEl) {
