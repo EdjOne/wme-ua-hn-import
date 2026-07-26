@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.11.2
+// @version     1.11.3
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1580,10 +1580,10 @@
             return null;
           }
 
-          // --- Snap to road logic ---
+          // --- Snap to road logic (batch/Alt+click only, single click = marker position) ---
           let snapLon = feature.lon;
           let snapLat = feature.lat;
-          if (LS.getSnapToRoad()) {
+          if (LS.getSnapToRoad() && !forceUseNearest) {
             const snapResult = snapToNearestRoad(feature.lon, feature.lat, streetId);
             if (snapResult) {
               snapLon = snapResult.lon;
