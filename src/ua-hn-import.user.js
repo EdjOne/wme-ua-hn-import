@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.12.8
+// @version     1.12.9
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1480,16 +1480,35 @@
           }
 
           // Check if street has a name (RPP cannot be created without street name)
-          const street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
+          let street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
 
           const streetNameLower = street?.name?.toLowerCase().trim() || '';
           const isNamedUnnamed = !streetNameLower || 
               /^(unnamed road|дорога без назви|дорога без імені|—|без назви)$/i.test(streetNameLower);
           if (isNamedUnnamed) {
-            const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
-            if (!silent) toast(msg, 'warning');
-            else console.warn('[UA-RPP]', msg);
-            return null;
+            if (forceUseNearest) {
+              // Single-click: try nearest named segment, fallback to marker street
+              const namedSeg = findNearestNamedSegment(feature.lat, feature.lon, segments);
+              if (namedSeg) {
+                nearestStreetId = namedSeg.primaryStreetId;
+                nearestSegment = namedSeg;
+                street = wmeSDK.DataModel.Streets.getById({ streetId: nearestStreetId });
+              } else if (feature.streetRaw) {
+                // No named segment nearby — use marker's street name
+                // Will enter useMarkerStreet path below
+                console.log('[UA-RPP] No named segment, will use marker street:', feature.streetRaw);
+              } else {
+                const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
+                if (!silent) toast(msg, 'warning');
+                else console.warn('[UA-RPP]', msg);
+                return null;
+              }
+            } else {
+              const msg = 'Сегмент "Дорога без назви" — RPP не можна створити';
+              if (!silent) toast(msg, 'warning');
+              else console.warn('[UA-RPP]', msg);
+              return null;
+            }
           }
 
           // If segment lacks street name, use the one from the marker
