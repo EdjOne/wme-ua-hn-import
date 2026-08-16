@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.12.9
+// @version     1.12.10
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -1793,8 +1793,11 @@
               snapLon = snapResult.lon;
               snapLat = snapResult.lat;
             }
-            // If preferred street segments found nothing within 100m, try any segment (fallback)
-            if (!snapResult && streetId) {
+            // If preferred street segments found nothing within 100m:
+            // Single click — try any segment (user aimed at the marker deliberately).
+            // Batch — DON'T fall back to a foreign street: a far marker could stick
+            // to a random road and visually lie next to it. Keep marker position.
+            if (!snapResult && forceUseNearest) {
               const fallbackSnap = snapToNearestRoad(feature.lon, feature.lat);
               if (fallbackSnap) {
                 snapLon = fallbackSnap.lon;
