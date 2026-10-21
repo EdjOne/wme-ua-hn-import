@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME UA-RPP
 // @namespace    https://github.com/EdjOne/house-number
-// @version     1.12.10
+// @version     1.12.11
 // @description  Швидкий імпорт RPP UA 🇺🇦
 // @author       EdjOne, Sapozhnik, Hermes Agent AI
 // @downloadURL  https://github.com/EdjOne/wme-ua-hn-import/raw/refs/heads/main/src/ua-hn-import.user.js
@@ -42,6 +42,7 @@
   const SDK_LAYER_NAME = 'qhnua-sdk';
   const MAX_CLICK_DISTANCE_PX = 35;
   const MAX_RPP_CONFLICT_DISTANCE = 0.001; // ~111 meters at 49° latitude
+  const BATCH_MIN_EDITOR_LEVEL = 5; // batch (Alt+click) only for L5+ editors
 
   const UA_BUFFER_DEFAULT = 200; // reduced radius to avoid timeouts
   const OVERPASS_APIS = [
@@ -117,6 +118,23 @@
     // Also log to console
     console.info(`[UA-RPP] ${msg}`);
   };
+
+  // Editor level (1..6) of the logged-in user. SDK rank is 0-based → level = rank + 1.
+  // Returns 0 when not logged in / rank unknown.
+  function getEditorLevel() {
+    try {
+      const info = wmeSDK?.State?.getUserInfo?.();
+      if (!info || typeof info.rank !== 'number') return 0;
+      return info.rank + 1;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  // Batch creation (Alt+click) is restricted to L5+ editors
+  function isBatchAllowed() {
+    return getEditorLevel() >= BATCH_MIN_EDITOR_LEVEL;
+  }
 
   // Custom DOM toast — guaranteed to show even if WME Notifications fail
   function showCopyToast(text) {
@@ -1320,6 +1338,14 @@
       // Alt+click = create 1 RPP for clicked marker + batch all other unprocessed
       if (altClickPending) {
         altClickPending = false;
+        // Batch is restricted to L5+ editors — for lower ranks Alt+click does nothing
+        if (!isBatchAllowed()) {
+          const lvl = getEditorLevel();
+          toast(lvl > 0
+            ? `⚠️ Батч-створення RPP доступне лише для L5+. Ваш рівень: L${lvl}`
+            : '⚠️ Батч-створення RPP доступне лише для L5+ (потрібно увійти в WME)', 'warning');
+          return;
+        }
         // First create single RPP (saves source+street to batchContext)
         onFeatureClick(bestFeature);
         // Then batch all remaining unprocessed of same source+street
@@ -1993,6 +2019,15 @@
           const sourceLabels = { 'waze': 'Waze', 'visicom': 'Visicom', 'osm': 'OSM' };
           const sourceText = sourceLabels[source] || source;
 
+          // Safety gate: batch only for L5+ editors
+          if (!isBatchAllowed()) {
+            const lvl = getEditorLevel();
+            toast(lvl > 0
+              ? `⚠️ Батч-створення RPP доступне лише для L5+. Ваш рівень: L${lvl}`
+              : '⚠️ Батч-створення RPP доступне лише для L5+ (потрібно увійти в WME)', 'warning');
+            return;
+          }
+
           if (!batchContext.street) {
             toast('Спочатку клікніть на маркер (без Alt), щоб задати вулицю', 'warning');
             return;
@@ -2100,7 +2135,8 @@
           </div>
           <div id="hn-status" style="margin-top:10px;font-size:12px;color:#666;line-height:1.4;">
             <b>Інструкція</b><br/>
-            1) Відкрийте потрібну область на карті • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b>
+            1) Відкрийте потрібну область на карті • 2) Натиснути "Завантажити" • 3) <b>Клікнути номер на карті для додавання</b><br/>
+            <span id="hn-batch-hint"></span>
           </div>
           <div id="hn-restrictions" style="margin-top:8px;font-size:11px;color:#c00;line-height:1.3;"></div>
           <div style="margin-top:12px;padding-top:6px;border-top:1px solid #eee;width:100%;box-sizing:border-box;">
@@ -2120,6 +2156,25 @@
 
       currentStreetDiv = tabPane.querySelector('#hn-current-street');
       streetNameSpan = tabPane.querySelector('#hn-street-name');
+
+      // Show whether Alt+click batch is available for the current editor level
+      const batchHint = tabPane.querySelector('#hn-batch-hint');
+      const updateBatchHint = () => {
+        if (!batchHint) return;
+        const lvl = getEditorLevel();
+        if (lvl >= BATCH_MIN_EDITOR_LEVEL) {
+          batchHint.innerHTML = '🟢 <b>Alt+click</b> — батч-створення RPP доступне (ваш рівень L' + lvl + ').';
+          batchHint.style.color = '#0a0';
+        } else if (lvl > 0) {
+          batchHint.innerHTML = '🔒 <b>Alt+click</b> (батч RPP) доступний лише для L5+. Ваш рівень: L' + lvl + '.';
+          batchHint.style.color = '#c00';
+        } else {
+          batchHint.innerHTML = '🔒 <b>Alt+click</b> (батч RPP) доступний лише для L5+.';
+          batchHint.style.color = '#c00';
+        }
+      };
+      updateBatchHint();
+      setTimeout(updateBatchHint, 3000);
 
       const isChecked  = (el) => el?.hasAttribute('checked');
       const setChecked = (el, v) => { if (el) v ? el.setAttribute('checked', '') : el.removeAttribute('checked'); };
